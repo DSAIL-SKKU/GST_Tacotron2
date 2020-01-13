@@ -10,7 +10,7 @@ def prenet(inputs, is_training, layer_sizes, scope=None):
 		layer_sizes: Number of layers
 	"""
     x = inputs
-    drop_rate = 0.5 if is_training else 0.0
+    drop_rate = 0.5 if is_training else 0.0 # Dropout options
     with tf.variable_scope(scope or 'prenet'):
         for i, size in enumerate(layer_sizes): # Iterate [layer_sizes] times
             dense = tf.layers.dense(x, units=size, activation=tf.nn.relu, name='dense_%d' % (i + 1)) # relu activation
