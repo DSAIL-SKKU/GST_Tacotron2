@@ -3,9 +3,6 @@ from tensorflow.contrib.rnn import GRUCell
 
 
 def prenet(inputs, is_training, layer_sizes, scope=None):
-    """
-    sdffsad
-    """
     x = inputs
     drop_rate = 0.5 if is_training else 0.0
     with tf.variable_scope(scope or 'prenet'):
