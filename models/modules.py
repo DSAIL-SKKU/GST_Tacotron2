@@ -42,48 +42,60 @@ def post_cbhg(inputs, input_dim, is_training, depth):
 
 
 def cbhg(inputs, input_lengths, is_training, scope, K, projections, depth):
+    """
+    Returns :
+    Args:
+        inputs: input tensor
+        input_lengths: length of input tensor
+        is_training: Batch Normalization option in Conv1D
+        scope: network or model name
+        K: kernel size range
+        projections: projection layers option
+        depth: dimensionality option of Highway net and Bidirectical GRU's output
+    The layers in the code are staked in the order in which they came out.
+    """
     with tf.variable_scope(scope):
         with tf.variable_scope('conv_bank'):
-            # Convolution bank: concatenate on the last axis to stack channels from all convolutions
+
             conv_outputs = tf.concat(
-                [conv1d(inputs, k, 128, tf.nn.relu, is_training, 'conv1d_%d' % k) for k in range(1, K + 1)],
+                [conv1d(inputs, k, 128, tf.nn.relu, is_training, 'conv1d_%d' % k) for k in range(1, K + 1)], #1D Convolution layers using multiple types of Convolution Kernel.
                 axis=-1
-            )
+            )# Convolution bank: concatenate on the last axis to stack channels from all convolutions
 
         # Maxpooling:
         maxpool_output = tf.layers.max_pooling1d(
             conv_outputs,
             pool_size=2,
             strides=1,
-            padding='same')
+            padding='same') #1D Maxpooling layer(strides=1, width=2) 
 
         # Two projection layers:
-        proj1_output = conv1d(maxpool_output, 3, projections[0], tf.nn.relu, is_training, 'proj_1')
-        proj2_output = conv1d(proj1_output, 3, projections[1], None, is_training, 'proj_2')
+        proj1_output = conv1d(maxpool_output, 3, projections[0], tf.nn.relu, is_training, 'proj_1')#1st Conv1D projections
+        proj2_output = conv1d(proj1_output, 3, projections[1], None, is_training, 'proj_2')#2nd Conv1D projections
 
         # Residual connection:
-        highway_input = proj2_output + inputs
+        highway_input = proj2_output + inputs #Highway net input with residual connection
 
         half_depth = depth // 2
-        assert half_depth * 2 == depth, 'encoder and postnet depths must be even.'
+        assert half_depth * 2 == depth, 'encoder and postnet depths must be even.' #assert depth to be even
 
         # Handle dimensionality mismatch:
-        if highway_input.shape[2] != half_depth:
-            highway_input = tf.layers.dense(highway_input, half_depth)
+        if highway_input.shape[2] != half_depth: #check input's dimensionality and output's dimensionality are the same
+            highway_input = tf.layers.dense(highway_input, half_depth) #change input's channel size to Highway net output's  size
 
         # 4-layer HighwayNet:
         for i in range(4):
-            highway_input = highwaynet(highway_input, 'highway_%d' % (i + 1), half_depth)
+            highway_input = highwaynet(highway_input, 'highway_%d' % (i + 1), half_depth) #make 4 Highway net layers
         rnn_input = highway_input
 
-        # Bidirectional RNN
-        outputs, states = tf.nn.bidirectional_dynamic_rnn(
+        # Bidirectional GRU
+        outputs, states = tf.nn.bidirectional_dynamic_rnn( #make Bidirectional GRU
             GRUCell(half_depth),
             GRUCell(half_depth),
             rnn_input,
             sequence_length=input_lengths,
             dtype=tf.float32)
-        return tf.concat(outputs, axis=2)  # Concat forward and backward
+        return tf.concat(outputs, axis=2)  # Concat forward sequence and backward sequence
 
 
 def highwaynet(inputs, scope, depth):
