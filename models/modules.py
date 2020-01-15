@@ -22,7 +22,17 @@ def prenet(inputs, is_training, layer_sizes, scope=None):
 
 
 def encoder_cbhg(inputs, input_lengths, is_training, depth):
-	input_channels = inputs.get_shape()[2]
+	"""
+	Args:
+		inputs: input tensor
+		input_lengths: length of input tensor
+		is_training: Batch Normalization option in Conv1D
+		depth: dimensionality option of Highway net and Bidirectical GRU's output
+	
+	Output:
+		cbhg function
+	"""
+	input_channels = inputs.get_shape()[2] # 3rd element of inputs' shape
 	return cbhg(
 		inputs,
 		input_lengths,
@@ -34,6 +44,16 @@ def encoder_cbhg(inputs, input_lengths, is_training, depth):
 
 
 def post_cbhg(inputs, input_dim, is_training, depth):
+	"""
+	Args:
+		inputs: input tensor
+		input_dim: dimension of input tensor
+		is_training: Batch Normalization option in Conv1D
+		depth: dimensionality option of Highway net and Bidirectical GRU's output
+	
+	Output:
+		cbhg function
+	"""
 	return cbhg(
 		inputs,
 		None,
@@ -117,11 +137,23 @@ def highwaynet(inputs, scope, depth):
 
 
 def conv1d(inputs, kernel_size, channels, activation, is_training, scope):
+	"""
+	Args:
+		inputs: input tensor
+		kernel_size: length of the 1D convolution window
+		channels: dimensionality of the output space
+		activation: Activation function (None means linear activation)
+		is_training: Batch Normalization option in Conv1D
+		scope: namespace
+	
+	Output:
+		output tensor
+	"""
 	with tf.variable_scope(scope):
-		conv1d_output = tf.layers.conv1d(
+		conv1d_output = tf.layers.conv1d( # creates a convolution kernel
 			inputs,
 			filters=channels,
 			kernel_size=kernel_size,
 			activation=activation,
-			padding='same')
+			padding='same') # return output tensor
 		return tf.layers.batch_normalization(conv1d_output, training=is_training)
