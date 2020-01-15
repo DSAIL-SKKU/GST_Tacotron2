@@ -4,13 +4,13 @@ from tensorflow.contrib.rnn import GRUCell
 
 def prenet(inputs, is_training, layer_sizes, scope=None):
 	"""
-	args:
-		inputs (input vector)
-		is_training (dropout option)
-		layer_sizes (iteration number)
+	Args:
+		inputs: input vector
+		is_training: dropout option
+		layer_sizes: iteration number
 	
-	output:
-		x (prenet)
+	Output:
+		x: prenet
 	"""
 	x = inputs
 	drop_rate = 0.5 if is_training else 0.0 # set dropout rate 0.5 (only training)
@@ -66,7 +66,6 @@ def post_cbhg(inputs, input_dim, is_training, depth):
 
 def cbhg(inputs, input_lengths, is_training, scope, K, projections, depth):
     """
-    Returns : GRU output tensor
     Args:
         inputs: input tensor
         input_lengths: length of input tensor
