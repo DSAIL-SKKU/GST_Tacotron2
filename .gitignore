@@ -5,6 +5,7 @@ __pycache__/
 run*.sh
 *.wav
 *.npy
+*.json
 .ipynb_checkpoints/
 training/
 logs-tacotron/
