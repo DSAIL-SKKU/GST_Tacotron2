@@ -2,7 +2,7 @@ import argparse
 import os
 from multiprocessing import cpu_count
 from tqdm import tqdm
-from datasets import blizzard, ljspeech
+from datasets import blizzard, ljspeech, bible
 from hparams import hparams
 
 
@@ -26,7 +26,7 @@ def preprocess_bible(args):
     in_dir = os.path.join(args.base_dir, 'bible')
     out_dir = os.path.join(args.base_dir, args.output)
     os.makedirs(out_dir, exist_ok=True)
-    metadata = ljspeech.build_from_path(in_dir, out_dir, args.num_workers, tqdm=tqdm)
+    metadata = bible.build_from_path(in_dir, out_dir, args.num_workers, tqdm=tqdm)
     write_metadata(metadata, out_dir)
 
 
