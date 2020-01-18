@@ -9,7 +9,7 @@ from text.symbols import symbols, en_symbols, PAD, EOS
 from text.korean import jamo_to_korean
 
 # Mappings from symbol to numeric ID and vice versa:
-_symbol_to_id = {s: i for i, s in enumerate(symbols)}  # 80개
+_symbol_to_id = {s: i for i, s in enumerate(symbols)}
 _id_to_symbol = {i: s for i, s in enumerate(symbols)}
 isEn = False
 
@@ -53,7 +53,7 @@ def text_to_sequence(text, cleaner_names):
           cleaner_names: names of the cleaner functions to run the text through
       Returns:
           List of integers corresponding to the symbols in the text
-  '''
+    '''
     sequence = []
 
     # Check for curly braces and treat their contents as ARPAbet:
