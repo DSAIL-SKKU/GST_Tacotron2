@@ -9,5 +9,5 @@ run*.sh
 *.json
 .ipynb_checkpoints/
 training/
-logs-tacotron/
+logs-*/
 
