@@ -31,6 +31,12 @@ hparams = tf.contrib.training.HParams(
     attention_kernel = (31, ),
     attention_dim = 128,
     decoder_depth=256,
+    synthesis_constraint = False,
+    synthesis_constraint_type = 'window',
+    attention_win_size = 7,
+    attention_type = 'bah_mon_norm',
+    attention_dim = 128,
+     cumulative_weights = True,
 
     # Training:
     batch_size=32,
