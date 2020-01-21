@@ -140,7 +140,7 @@ def main():
 	parser.add_argument('--slack_url', help='Slack webhook URL to get periodic reports.')
 	parser.add_argument('--tf_log_level', type=int, default=1, help='Tensorflow C++ log level.')
 	parser.add_argument('--git', action='store_true', help='If set, verify that the client is clean.')
-	parser.add_argument('--gpu', default='2')
+	parser.add_argument('--gpu', default='1')
 	args = parser.parse_args()
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.tf_log_level)
 
