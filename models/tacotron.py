@@ -57,9 +57,9 @@ class Tacotron():
         self.mel_targets = mel_targets
         self.linear_targets = linear_targets
         log('Initialized Tacotron model. Dimensions: ')
-        log('embedding:',embedded_inputs.shape)
-        log('bi-lstm:',outputs)
-        log('encoder output:',encoder_output.shape)
+        print('embedding:',embedded_inputs.shape)
+        print('bi-lstm:',outputs)
+        print('encoder output:',encoder_output.shape)
         # log('  attention out:           %d' % attention_cell.output_size)
         # log('  concat attn & out:       %d' % concat_cell.output_size)
         # log('  decoder cell out:        %d' % decoder_cell.output_size)
