@@ -1,4 +1,4 @@
-from .tacotron import Tacotron
+from .tacotron2 import Tacotron2
 
 
 def create_model(name, hparams):
