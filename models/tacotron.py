@@ -42,7 +42,8 @@ class Tacotron():
             outputs, states = tf.nn.bidirectional_dynamic_rnn(lstm_fw,
                                                               lstm_bw,
                                                               encoder_conv_output,
-                                                              sequence_length=input_lengths) # [N, T_in, 512]
+                                                              sequence_length=input_lengths,
+                                                              dtype=tf.float32) # [N, T_in, 512]
             encoder_output = tf.concat(outputs, axis=2)
 
         # with tf.variable_scope('decoder') as scope:
