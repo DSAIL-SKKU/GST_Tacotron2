@@ -15,9 +15,14 @@ hparams = tf.contrib.training.HParams(
     min_level_db=-100,
     ref_level_db=20,
 
+    # Encoder:
+    embed_depth=512,
+    encoder_conv_filter=512,
+    encoder_conv_kernel=5,
+    encoder_stack_size=3,
+    encoder_lstm_hidden_dim=256,
     # Model:
     outputs_per_step=5,
-    embed_depth=256,
     prenet_depths=[256, 128],
     encoder_depth=256,
     postnet_depth=256,
