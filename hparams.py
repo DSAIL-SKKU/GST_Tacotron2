@@ -27,6 +27,9 @@ hparams = tf.contrib.training.HParams(
     encoder_depth=256,
     postnet_depth=256,
     attention_depth=256,
+    attention_filters = 32,
+    attention_kernel = (31, ),
+    attention_dim = 128,
     decoder_depth=256,
 
     # Training:
