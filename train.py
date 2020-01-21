@@ -126,7 +126,7 @@ def train(log_dir, args):
 
 def main():
 	parser = argparse.ArgumentParser()
-	parser.add_argument('--base_dir', default=os.path.expanduser('~/jeewoo/2020/Speech-Synthesis/tacotron/'))
+	parser.add_argument('--base_dir', default=os.path.expanduser('~/tacotron/Tacotron2/'))
 	parser.add_argument('--input', default='training/train.txt')
 	parser.add_argument('--model', default='tacotron')
 	parser.add_argument('--name', help='Name of the run. Used for logging. Defaults to model name.')
@@ -140,7 +140,7 @@ def main():
 	parser.add_argument('--slack_url', help='Slack webhook URL to get periodic reports.')
 	parser.add_argument('--tf_log_level', type=int, default=1, help='Tensorflow C++ log level.')
 	parser.add_argument('--git', action='store_true', help='If set, verify that the client is clean.')
-	parser.add_argument('--gpu', default='0')
+	parser.add_argument('--gpu', default='2')
 	args = parser.parse_args()
 	os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(args.tf_log_level)
 
