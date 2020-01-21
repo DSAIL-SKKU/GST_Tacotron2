@@ -6,7 +6,6 @@ from tensorflow.contrib.framework import nest
 from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import _bahdanau_score, _BaseAttentionMechanism, BahdanauAttention, AttentionWrapperState, AttentionMechanism, _BaseMonotonicAttentionMechanism, _maybe_mask_score,_prepare_memory, _monotonic_probability_fn
 from tensorflow.python.ops import array_ops, math_ops, nn_ops, variable_scope
 from tensorflow.python.layers.core import Dense
-from .modules import prenet
 import functools
 _zero_state_tensors = rnn_cell_impl._zero_state_tensors
 
