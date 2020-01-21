@@ -67,39 +67,39 @@ class Tacotron():
         # log('  postnet out:             %d' % post_outputs.shape[-1])
         # log('  linear out:              %d' % linear_outputs.shape[-1])
 
-    def add_loss(self):
-        '''Adds loss to the model. Sets "loss" field. initialize must have been called.'''
-        with tf.variable_scope('loss') as scope:
-            hp = self._hparams
-            self.mel_loss = tf.reduce_mean(tf.abs(self.mel_targets - self.mel_outputs))
-            l1 = tf.abs(self.linear_targets - self.linear_outputs)
-            # Prioritize loss for frequencies under 3000 Hz.
-            n_priority_freq = int(3000 / (hp.sample_rate * 0.5) * hp.num_freq)
-            self.linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:, :, 0:n_priority_freq])
-            self.loss = self.mel_loss + self.linear_loss
-
-    def add_optimizer(self, global_step):
-        '''Adds optimizer. Sets "gradients" and "optimize" fields. add_loss must have been called.
-
-        Args:
-          global_step: int32 scalar Tensor representing current global step in training
-        '''
-        with tf.variable_scope('optimizer') as scope:
-            hp = self._hparams
-            if hp.decay_learning_rate:
-                self.learning_rate = _learning_rate_decay(hp.initial_learning_rate, global_step)
-            else:
-                self.learning_rate = tf.convert_to_tensor(hp.initial_learning_rate)
-            optimizer = tf.train.AdamOptimizer(self.learning_rate, hp.adam_beta1, hp.adam_beta2)
-            gradients, variables = zip(*optimizer.compute_gradients(self.loss))
-            self.gradients = gradients
-            clipped_gradients, _ = tf.clip_by_global_norm(gradients, 1.0)
-
-            # Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
-            # https://github.com/tensorflow/tensorflow/issues/1122
-            with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-                self.optimize = optimizer.apply_gradients(zip(clipped_gradients, variables),
-                                                          global_step=global_step)
+    # def add_loss(self):
+    #     '''Adds loss to the model. Sets "loss" field. initialize must have been called.'''
+    #     with tf.variable_scope('loss') as scope:
+    #         hp = self._hparams
+    #         self.mel_loss = tf.reduce_mean(tf.abs(self.mel_targets - self.mel_outputs))
+    #         l1 = tf.abs(self.linear_targets - self.linear_outputs)
+    #         # Prioritize loss for frequencies under 3000 Hz.
+    #         n_priority_freq = int(3000 / (hp.sample_rate * 0.5) * hp.num_freq)
+    #         self.linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:, :, 0:n_priority_freq])
+    #         self.loss = self.mel_loss + self.linear_loss
+    #
+    # def add_optimizer(self, global_step):
+    #     '''Adds optimizer. Sets "gradients" and "optimize" fields. add_loss must have been called.
+    #
+    #     Args:
+    #       global_step: int32 scalar Tensor representing current global step in training
+    #     '''
+    #     with tf.variable_scope('optimizer') as scope:
+    #         hp = self._hparams
+    #         if hp.decay_learning_rate:
+    #             self.learning_rate = _learning_rate_decay(hp.initial_learning_rate, global_step)
+    #         else:
+    #             self.learning_rate = tf.convert_to_tensor(hp.initial_learning_rate)
+    #         optimizer = tf.train.AdamOptimizer(self.learning_rate, hp.adam_beta1, hp.adam_beta2)
+    #         gradients, variables = zip(*optimizer.compute_gradients(self.loss))
+    #         self.gradients = gradients
+    #         clipped_gradients, _ = tf.clip_by_global_norm(gradients, 1.0)
+    #
+    #         # Add dependency on UPDATE_OPS; otherwise batchnorm won't work correctly. See:
+    #         # https://github.com/tensorflow/tensorflow/issues/1122
+    #         with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+    #             self.optimize = optimizer.apply_gradients(zip(clipped_gradients, variables),
+    #                                                       global_step=global_step)
 
 
 def _learning_rate_decay(init_lr, global_step):
