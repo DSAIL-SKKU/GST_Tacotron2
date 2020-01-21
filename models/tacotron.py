@@ -58,6 +58,7 @@ class Tacotron():
         self.linear_targets = linear_targets
         log('Initialized Tacotron model. Dimensions: ')
         print('embedding:',embedded_inputs.shape)
+        print('enc_conv:',encoder_conv_output.shape)
         print('bi-lstm:',outputs)
         print('encoder output:',encoder_output.shape)
         # log('  attention out:           %d' % attention_cell.output_size)
