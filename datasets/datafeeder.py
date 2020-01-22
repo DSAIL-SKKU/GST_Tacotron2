@@ -11,6 +11,7 @@ from util.infolog import log
 _batches_per_group = 32
 # _p_cmudict = 0.5
 _pad = 0
+_stop_token_pad = 1
 
 
 class DataFeeder(threading.Thread):
@@ -122,7 +123,8 @@ def _prepare_batch(batch, outputs_per_step):
     input_lengths = np.asarray([len(x[0]) for x in batch], dtype=np.int32)
     mel_targets = _prepare_targets([x[1] for x in batch], outputs_per_step)
     linear_targets = _prepare_targets([x[2] for x in batch], outputs_per_step)
-    return (inputs, input_lengths, mel_targets, linear_targets)
+    stop_token_targets = _prepare_stop_token_targets([x[4] for x in batch], outputs_per_step)
+    return (inputs, input_lengths, mel_targets, linear_targets, stop_token_targets)
 
 
 def _prepare_inputs(inputs):
@@ -134,6 +136,9 @@ def _prepare_targets(targets, alignment):
     max_len = max((len(t) for t in targets)) + 1
     return np.stack([_pad_target(t, _round_up(max_len, alignment)) for t in targets])
 
+def _prepare_stop_token_targets(targets, alignment):
+    max_len = max((len(t) for t in targets)) + 1
+    return np.stack([_pad_stop_token_target(t, _round_up(max_len, alignment)) for t in targets])
 
 def _pad_input(x, length):
     return np.pad(x, (0, length - x.shape[0]), mode='constant', constant_values=_pad)
@@ -142,6 +147,8 @@ def _pad_input(x, length):
 def _pad_target(t, length):
     return np.pad(t, [(0, length - t.shape[0]), (0, 0)], mode='constant', constant_values=_pad)
 
+def _pad_stop_token_target(t, length):
+    return np.pad(t, (0, length - t.shape[0]), mode='constant', constant_values=_stop_token_pad)
 
 def _round_up(x, multiple):
     remainder = x % multiple
