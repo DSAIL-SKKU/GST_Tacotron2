@@ -146,13 +146,13 @@ class Tacotron2():
             self.mel_loss = tf.reduce_mean(mel_loss)
 
 
-            stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.stop_token_targets, logits=self.stop_token_outputs))
+            # stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.stop_token_targets, logits=self.stop_token_outputs))
 
             l1 = tf.abs(self.linear_targets - self.linear_outputs)
             # Prioritize loss for frequencies under 3000 Hz.
             n_priority_freq = int(3000 / (hp.sample_rate * 0.5) * hp.num_freq)
             self.linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:, :, 0:n_priority_freq])
-            self.loss = self.mel_loss + self.linear_loss + stop_token_loss
+            self.loss = self.mel_loss + self.linear_loss
 
     def add_optimizer(self, global_step):
         '''Adds optimizer. Sets "gradients" and "optimize" fields. add_loss must have been called.
