@@ -123,7 +123,7 @@ def _prepare_batch(batch, outputs_per_step):
     input_lengths = np.asarray([len(x[0]) for x in batch], dtype=np.int32)
     mel_targets = _prepare_targets([x[1] for x in batch], outputs_per_step)
     linear_targets = _prepare_targets([x[2] for x in batch], outputs_per_step)
-    stop_token_targets = _prepare_stop_token_targets([x[4] for x in batch], outputs_per_step)
+    stop_token_targets = _prepare_stop_token_targets([x[3] for x in batch], outputs_per_step)
     return (inputs, input_lengths, mel_targets, linear_targets, stop_token_targets)
 
 
