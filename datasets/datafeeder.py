@@ -110,8 +110,8 @@ class DataFeeder(threading.Thread):
         input_data = np.asarray(text_to_sequence(text, self._cleaner_names), dtype=np.int32)
         linear_target = np.load(os.path.join(self._datadir, meta[0]))
         mel_target = np.load(os.path.join(self._datadir, meta[1]))
-        print(len(mel_target))
         stop_token_target = np.asarray([0.] * len(mel_target))
+        print(stop_token_target.shape(-1))
         return (input_data, mel_target, linear_target, stop_token_target, len(linear_target))
 
     def _maybe_get_arpabet(self, word):
