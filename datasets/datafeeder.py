@@ -36,17 +36,19 @@ class DataFeeder(threading.Thread):
             tf.placeholder(tf.int32, [None, None], 'inputs'),
             tf.placeholder(tf.int32, [None], 'input_lengths'),
             tf.placeholder(tf.float32, [None, None, hparams.num_mels], 'mel_targets'),
-            tf.placeholder(tf.float32, [None, None, hparams.num_freq], 'linear_targets')
+            tf.placeholder(tf.float32, [None, None, hparams.num_freq], 'linear_targets'),
+            tf.placeholder(tf.float32, [None, None], 'stop_token_targets')
         ]
 
         # Create queue for buffering data:
-        queue = tf.FIFOQueue(8, [tf.int32, tf.int32, tf.float32, tf.float32], name='input_queue')
+        queue = tf.FIFOQueue(8, [tf.int32, tf.int32, tf.float32, tf.float32, tf.float32], name='input_queue')
         self._enqueue_op = queue.enqueue(self._placeholders)
-        self.inputs, self.input_lengths, self.mel_targets, self.linear_targets = queue.dequeue()
+        self.inputs, self.input_lengths, self.mel_targets, self.linear_targets, self.stop_token_targets = queue.dequeue()
         self.inputs.set_shape(self._placeholders[0].shape)
         self.input_lengths.set_shape(self._placeholders[1].shape)
         self.mel_targets.set_shape(self._placeholders[2].shape)
         self.linear_targets.set_shape(self._placeholders[3].shape)
+        self.stop_token_targets.set_shape(self._placeholders[4].shape)
         self._cmudict = None
 
         # # Load CMUDict: If enabled, this will randomly substitute some words in the training data with
