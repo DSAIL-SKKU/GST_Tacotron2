@@ -44,8 +44,11 @@ def main():
     parser.add_argument('--checkpoint', required=True, help='Path to model checkpoint')
     parser.add_argument('--hparams', default='',
         help='Hyperparameter overrides as a comma-separated list of name=value pairs')
+    parser.add_argument('--gpu', default='1')
     args = parser.parse_args()
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     hparams.parse(args.hparams)
     run_eval(args)
 
