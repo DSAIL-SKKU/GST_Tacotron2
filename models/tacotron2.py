@@ -90,11 +90,11 @@ class Tacotron2():
                 maximum_iterations=hp.max_iters)  # [N, T_out/r, M*r]
 
             # Reshape outputs to be one output per entry
-            mel_outputs = tf.reshape(decoder_outputs[:,:,:hp.num_mels * hp.outputs_per_step], [batch_size, -1, hp.num_mels])  # [N, T_out, M]
+            decoder_mel_outputs = tf.reshape(decoder_outputs[:,:,:hp.num_mels * hp.outputs_per_step], [batch_size, -1, hp.num_mels])  # [N, T_out, M]
             stop_token_outputs = tf.reshape(decoder_outputs[:,:,hp.num_mels * hp.outputs_per_step:], [batch_size, -1]) # [N,iters]
             
      # Postnet
-            x = mel_outputs
+            x = decoder_mel_outputs
             for i in range(5):
                 activation = tf.nn.tanh if i != (4) else None
                 x = tf.layers.conv1d(x,filters=512, kernel_size=5, padding='same', activation=activation, name='Postnet_{}'.format(i))
@@ -102,7 +102,7 @@ class Tacotron2():
                 x = tf.layers.dropout(x, rate=0.5, training=is_training, name='Postnet_dropout_{}'.format(i))
  
             residual = tf.layers.dense(x, hp.num_mels, name='residual_projection')
-            mel_outputs = mel_outputs + residual
+            mel_outputs = decoder_mel_outputs + residual
 
             # Add post-processing CBHG:
             # mel_outputs: (N,T,num_mels)
@@ -115,11 +115,15 @@ class Tacotron2():
 			
             self.inputs = inputs
             self.input_lengths = input_lengths
+            self.decoder_mel_outputs = decoder_mel_outputs
             self.mel_outputs = mel_outputs
             self.linear_outputs = linear_outputs
             self.alignments = alignments
             self.mel_targets = mel_targets
             self.linear_targets = linear_targets
+            self.stop_token_targets = stop_token_targets
+            self.stop_token_outputs = stop_token_outputs
+            self.all_vars = tf.trainable_variables()
             log('Initialized Tacotron model. Dimensions: ')
             log('  embedding:               %d' % embedded_inputs.shape[-1])
             # log('  prenet out:              %d' % prenet_outputs.shape[-1])
@@ -136,12 +140,19 @@ class Tacotron2():
         '''Adds loss to the model. Sets "loss" field. initialize must have been called.'''
         with tf.variable_scope('loss') as scope:
             hp = self._hparams
-            self.mel_loss = tf.reduce_mean(tf.abs(self.mel_targets - self.mel_outputs))
+            before = tf.squared_difference(self.mel_targets, self.decoder_mel_outputs)
+            after = tf.squared_difference(self.mel_targets, self.mel_outputs)
+            mel_loss = before+after
+            self.mel_loss = tf.reduce_mean(mel_loss)
+
+
+            stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.stop_token_targets, logits=self.stop_token_outputs))
+
             l1 = tf.abs(self.linear_targets - self.linear_outputs)
             # Prioritize loss for frequencies under 3000 Hz.
             n_priority_freq = int(3000 / (hp.sample_rate * 0.5) * hp.num_freq)
             self.linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:, :, 0:n_priority_freq])
-            self.loss = self.mel_loss + self.linear_loss
+            self.loss = self.mel_loss + self.linear_loss + stop_token_loss
 
     def add_optimizer(self, global_step):
         '''Adds optimizer. Sets "gradients" and "optimize" fields. add_loss must have been called.
