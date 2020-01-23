@@ -30,6 +30,14 @@ def preprocess_bible(args):
     write_metadata(metadata, out_dir)
 
 
+def preprocess_kss(args):
+    in_dir = os.path.join(args.base_dir, 'kss')
+    out_dir = os.path.join(args.base_dir, args.output)
+    os.makedirs(out_dir, exist_ok=True)
+    metadata = bible.build_from_path(in_dir, out_dir, args.num_workers, tqdm=tqdm)
+    write_metadata(metadata, out_dir)
+
+
 def write_metadata(metadata, out_dir):
     with open(os.path.join(out_dir, 'train.txt'), 'w', encoding='utf-8') as f:
         for m in metadata:
@@ -45,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--base_dir', default=os.path.expanduser('~/tacotron/Tacotron2/'))
     parser.add_argument('--output', default='training')
-    parser.add_argument('--dataset', required=True, choices=['blizzard', 'ljspeech', 'bible'])
+    parser.add_argument('--dataset', required=True, choices=['blizzard', 'ljspeech', 'bible', 'kss'])
     parser.add_argument('--num_workers', type=int, default=cpu_count())
     args = parser.parse_args()
     if args.dataset == 'blizzard':
@@ -54,6 +62,8 @@ def main():
         preprocess_ljspeech(args)
     elif args.dataset == 'bible':
         preprocess_bible(args)
+    elif args.dataset == 'kss':
+        preprocess_kss(args)
 
 
 if __name__ == "__main__":
