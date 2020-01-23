@@ -36,7 +36,7 @@ hparams = tf.contrib.training.HParams(
     attention_win_size = 7,
     attention_type = 'bah_mon_norm',
     cumulative_weights = True,
-    tacotron_reg_weight = 1e-6,
+    reg_weight = 1e-6,
 
     # Training:
     batch_size=32,
