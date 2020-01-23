@@ -91,7 +91,7 @@ class Tacotron2():
 
             # Reshape outputs to be one output per entry
             decoder_mel_outputs = tf.reshape(decoder_outputs[:,:,:hp.num_mels * hp.outputs_per_step], [batch_size, -1, hp.num_mels])  # [N, T_out, M]
-            stop_token_outputs = tf.reshape(decoder_outputs[:,:,hp.num_mels * hp.outputs_per_step:], [batch_size, -1]) # [N,iters]
+            #stop_token_outputs = tf.reshape(decoder_outputs[:,:,hp.num_mels * hp.outputs_per_step:], [batch_size, -1]) # [N,iters]
             
      # Postnet
             x = decoder_mel_outputs
@@ -121,8 +121,8 @@ class Tacotron2():
             self.alignments = alignments
             self.mel_targets = mel_targets
             self.linear_targets = linear_targets
-            self.stop_token_targets = stop_token_targets
-            self.stop_token_outputs = stop_token_outputs
+            #self.stop_token_targets = stop_token_targets
+            #self.stop_token_outputs = stop_token_outputs
             self.all_vars = tf.trainable_variables()
             log('Initialized Tacotron model. Dimensions: ')
             log('  embedding:               %d' % embedded_inputs.shape[-1])
