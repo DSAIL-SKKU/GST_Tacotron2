@@ -140,19 +140,23 @@ class Tacotron2():
         '''Adds loss to the model. Sets "loss" field. initialize must have been called.'''
         with tf.variable_scope('loss') as scope:
             hp = self._hparams
-            before = tf.squared_difference(self.mel_targets, self.decoder_mel_outputs)
-            after = tf.squared_difference(self.mel_targets, self.mel_outputs)
-            mel_loss = before+after
-            self.mel_loss = tf.reduce_mean(mel_loss)
+            before = tf.losses.mean_squared_error(self.mel_targets, self.decoder_mel_outputs)
+            after = tf.losses.mean_squared_error(self.mel_targets, self.mel_outputs)
+    
+            self.mel_loss = before + after
 
 
-            # stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.stop_token_targets, logits=self.stop_token_outputs))
+            self.stop_token_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.stop_token_targets, logits=self.stop_token_outputs))
 
             l1 = tf.abs(self.linear_targets - self.linear_outputs)
             # Prioritize loss for frequencies under 3000 Hz.
             n_priority_freq = int(3000 / (hp.sample_rate * 0.5) * hp.num_freq)
             self.linear_loss = 0.5 * tf.reduce_mean(l1) + 0.5 * tf.reduce_mean(l1[:, :, 0:n_priority_freq])
-            self.loss = self.mel_loss + self.linear_loss
+
+            self.regularization = tf.add_n([tf.nn.l2_loss(v) for v in self.all_vars
+						if not('bias' in v.name or 'Bias' in v.name or '_projection' in v.name or 'inputs_embedding' in v.name
+							or 'RNN' in v.name or 'LSTM' in v.name)]) * hp.reg_weight
+            self.loss = self.mel_loss + self.linear_loss + self.regularization + self.stop_token_loss
 
     def add_optimizer(self, global_step):
         '''Adds optimizer. Sets "gradients" and "optimize" fields. add_loss must have been called.
