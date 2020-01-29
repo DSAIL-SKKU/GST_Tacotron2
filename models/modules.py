@@ -554,3 +554,35 @@ class BahdanauStepwiseMonotonicAttention(BahdanauMonotonicAttention):
         self._normalize = normalize
         self._name = name
         self._score_bias_init = score_bias_init
+
+    # def __call__(self, query, state):
+    #     """Score the query based on the keys and values.
+    #     Args:
+    #       query: Tensor of dtype matching `self.values` and shape
+    #         `[batch_size, query_depth]`.
+    #       state: Tensor of dtype matching `self.values` and shape
+    #         `[batch_size, alignments_size]`
+    #         (`alignments_size` is memory's `max_time`).
+    #     Returns:
+    #       alignments: Tensor of dtype matching `self.values` and shape
+    #         `[batch_size, alignments_size]` (`alignments_size` is memory's
+    #         `max_time`).
+    #     """
+    #     with tf.variable_scope(None, "bahdanau_stepwise_monotonic_attention", [query]):
+    #         processed_query = self.query_layer(query) if self.query_layer else query
+    #         score = _bahdanau_score(processed_query, self._keys, self._normalize)     # keys 가 memory임
+    #         score_bias = tf.get_variable("attention_score_bias", dtype=processed_query.dtype, initializer=self._score_bias_init)
+
+    #         #alignments_bias = tf.get_variable("alignments_bias", shape = state.get_shape()[-1],dtype=processed_query.dtype, initializer=tf.zeros_initializer())  # hccho
+    #         alignments_bias = tf.get_variable("alignments_bias", shape = (1),dtype=processed_query.dtype, initializer=tf.zeros_initializer())  # hccho
+
+    #         score += score_bias
+    #     alignments = self._probability_fn(score, state)   #BahdanauAttention에서 _probability_fn = softmax
+
+    #     next_state = alignments   # 다음 alignment 계산에 사용할 state 값  =  AttentionWrapperState.attention_state
+    #     # hccho. alignment가 attention 계산에 직접 사용된다.
+    #     alignments = tf.nn.relu(alignments+alignments_bias)
+    #     alignments = alignments/(tf.reduce_sum(alignments,axis=-1,keepdims=True) + 1.0e-12 )  # hccho 수정
+
+
+    #     return alignments, next_state
