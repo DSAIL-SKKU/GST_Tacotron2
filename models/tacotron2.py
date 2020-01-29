@@ -4,7 +4,7 @@ from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, Attentio
 from text.symbols import symbols
 from util.infolog import log
 from .helpers import TacoTestHelper, TacoTrainingHelper
-from .modules import encoder_cbhg, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell
+from .modules import encoder_cbhg, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention
 from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper
 
 
@@ -63,7 +63,13 @@ class Tacotron2():
             
         with tf.variable_scope('Decoder') as scope:
             
-            attention_mechanism = LocationSensitiveAttention(128, encoder_outputs, hparams=hp, is_training=is_training, mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
+            if hp.attention_type == 'loc_sen': # Location Sensitivity Attention
+                attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
+                                    mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
+            elif hp.attention_type == 'gmm': # GMM Attention
+                attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths)  
+
+            # attention_mechanism = LocationSensitiveAttention(128, encoder_outputs, hparams=hp, is_training=is_training, mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
             #mask_encoder: whether to mask encoder padding while computing location sensitive attention. Set to True for better prosody but slower convergence.
             #cumulate_weights: Whether to cumulate (sum) all previous attention weights or simply feed previous weights (Recommended: True)
             

@@ -34,7 +34,7 @@ hparams = tf.contrib.training.HParams(
     synthesis_constraint = False,
     synthesis_constraint_type = 'window',
     attention_win_size = 7,
-    attention_type = 'bah_mon_norm',
+    attention_type = 'gmm',
     cumulative_weights = True,
     reg_weight = 1e-6,
 
