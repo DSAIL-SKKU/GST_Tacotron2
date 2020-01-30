@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.contrib.rnn import GRUCell, MultiRNNCell, OutputProjectionWrapper, ResidualWrapper
-from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, AttentionWrapper
+from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, AttentionWrapper, BahdanauMonotonicAttention, LuongAttention
 from text.symbols import symbols
 from util.infolog import log
 from .helpers import TacoTestHelper, TacoTrainingHelper
@@ -70,6 +70,10 @@ class Tacotron2():
                 attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths) 
             elif hp.attention_type == 'step_bah':
                 attention_mechanism = BahdanauStepwiseMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, mode="parallel")
+            elif hp.attention_type == 'mon_bah':
+                attention_mechanism = BahdanauMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, normalize=True)
+            elif hp.attention_type == 'loung':
+                attention_mechanism = LuongAttention(128, encoder_outputs, memory_sequence_length = input_lengths, scale=True) 
 
             # attention_mechanism = LocationSensitiveAttention(128, encoder_outputs, hparams=hp, is_training=is_training, mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
             #mask_encoder: whether to mask encoder padding while computing location sensitive attention. Set to True for better prosody but slower convergence.
