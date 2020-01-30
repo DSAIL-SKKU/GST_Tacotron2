@@ -150,7 +150,7 @@ def main():
 	run_name = args.name or args.model
 	attention_name = hparams.attention_type
 	print(attention_name)
-	log_dir = os.path.join(args.base_dir, 'logs-%s-%s' % run_name, attention_name)
+	log_dir = os.path.join(args.base_dir, 'logs-%s-%s' % (run_name, attention_name))
 	os.makedirs(log_dir, exist_ok=True)
 	infolog.init(os.path.join(log_dir, 'train.log'), run_name, args.slack_url)
 	hparams.parse(args.hparams)
