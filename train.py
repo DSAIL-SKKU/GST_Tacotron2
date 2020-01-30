@@ -148,7 +148,8 @@ def main():
 	os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 	os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
 	run_name = args.name or args.model
-	log_dir = os.path.join(args.base_dir, 'logs-%s' % run_name)
+	attention_name = hparams.attention_type
+	log_dir = os.path.join(args.base_dir, 'logs-%s-%s' % run_name, attention_name)
 	os.makedirs(log_dir, exist_ok=True)
 	infolog.init(os.path.join(log_dir, 'train.log'), run_name, args.slack_url)
 	hparams.parse(args.hparams)
