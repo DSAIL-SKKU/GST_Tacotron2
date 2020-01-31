@@ -6,6 +6,7 @@ from tensorflow.contrib.framework import nest
 from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import _bahdanau_score, _BaseAttentionMechanism, BahdanauAttention, BahdanauMonotonicAttention, AttentionWrapperState, AttentionMechanism, _BaseMonotonicAttentionMechanism, _maybe_mask_score,_prepare_memory, _monotonic_probability_fn
 from tensorflow.python.ops import array_ops, math_ops, nn_ops, variable_scope, random_ops
 from tensorflow.python.layers.core import Dense
+from util.ops import shape_list
 
 import functools
 _zero_state_tensors = rnn_cell_impl._zero_state_tensors
@@ -32,6 +33,22 @@ def prenet(inputs, is_training, layer_sizes, scope=None):
 			x = tf.layers.dropout(dense, rate=drop_rate, training=is_training, name='dropout_%d' % (i + 1)) 
 	return x
 
+def encoder(inputs, input_lengths, is_training, filters, kernel_size, rnn_num_units, scope='Encoder'):
+    with tf.variable_scope(scope or 'Encoder'):
+        x = inputs
+        for i in range(3):
+            x = tf.layers.conv1d(x, filters=filters, kernel_size=5, padding='same', activation=tf.nn.relu, name='Encoder_{}'.format(i))
+            x = tf.layers.batch_normalization(x, training=is_training)
+            x = tf.layers.dropout(x, rate=0.5, training=is_training, name='dropout_{}'.format(i))
+        encoder_conv_output = x
+         #bi-directional LSTM
+        cell_fw= ZoneoutLSTMCell(rnn_num_units, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='encoder_fw_LSTM')
+        cell_bw= ZoneoutLSTMCell(rnn_num_units, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='encoder_bw_LSTM')
+        
+        outputs, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, encoder_conv_output, sequence_length=input_lengths, dtype=tf.float32)
+        
+        # envoder_outpust = [N,T,2*encoder_lstm_units] = [N,T,512]
+        return tf.concat(outputs, axis=2) # Concat and return forward + backward outputs
 
 def reference_encoder(inputs, filters, kernel_size, strides, encoder_cell, is_training, scope='ref_encoder'):
   with tf.variable_scope(scope or 'ref_encoder'):

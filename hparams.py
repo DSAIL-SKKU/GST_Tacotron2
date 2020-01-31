@@ -21,22 +21,34 @@ hparams = tf.contrib.training.HParams(
     encoder_conv_kernel=5,
     encoder_stack_size=3,
     encoder_lstm_hidden_dim=256,
-    # Model:
-    outputs_per_step=5,
-    prenet_depths=[256, 256],
-    encoder_depth=256,
-    postnet_depth=256,
+
+    #Global Style Token
+    num_gst=10,
+    style_embed_depth=256,
+    ref_filters=[32, 32, 64, 64, 128, 128],
+    ref_depth=128,
+    style_att_type='mlp_attention',
+    style_att_dim=128,
+
+    #Attention
     attention_depth=256,
     attention_filters = 32,
     attention_kernel = (31, ),
     attention_dim = 128,
-    decoder_depth=256,
     synthesis_constraint = False,
     synthesis_constraint_type = 'window',
     attention_win_size = 7,
     attention_type = 'step_bah',
     cumulative_weights = True,
+    num_heads=6,
+
+    # Model:
+    outputs_per_step=5,
+    prenet_depths=[256, 256],
+    encoder_depth=256,
+    postnet_depth=256,
     reg_weight = 1e-6,
+    decoder_depth=256,
 
     # Training:
     batch_size=32,

@@ -3,16 +3,17 @@ from tensorflow.contrib.rnn import GRUCell, MultiRNNCell, OutputProjectionWrappe
 from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, AttentionWrapper, BahdanauMonotonicAttention, LuongAttention
 from text.symbols import symbols
 from util.infolog import log
+from util.ops import shape_list
 from .helpers import TacoTestHelper, TacoTrainingHelper
-from .modules import encoder_cbhg, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention, BahdanauStepwiseMonotonicAttention
+from .modules import encoder, reference_encoder, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention, BahdanauStepwiseMonotonicAttention
 from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper
-
+from .style_attention import MultiheadAttention
 
 class Tacotron2():
     def __init__(self, hparams):
         self._hparams = hparams
 
-    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, stop_token_targets=None):
+    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, stop_token_targets=None, referece_mel=None):
         '''Initializes the model for inference.
 
         Sets "mel_outputs", "linear_outputs", and "alignments" fields.
@@ -29,8 +30,9 @@ class Tacotron2():
             of steps in the output time series, F is num_freq, and values are entries in the linear
             spectrogram. Only needed for training.
         '''
-        with tf.variable_scope('inference') as scope:
+        with tf.variable_scope('Encoder') as scope:
             is_training = linear_targets is not None
+            is_teacher_force_generating = mel_targets is not None
             batch_size = tf.shape(inputs)[0]
             hp = self._hparams
 
@@ -41,25 +43,34 @@ class Tacotron2():
             
             embedded_inputs = tf.nn.embedding_lookup(embedding_table, inputs)  # [N, T_in, embed_depth=256]
             
-        with tf.variable_scope('Encoder') as scope:
+            #Global Style Token Embeddings
+            gst_tokens = tf.get_variable('style_tokens', [hp.num_gst, hp.style_embed_depth//hp.num_heads], dtype=tf.float32,
+                initializer=tf.truncated_normal_initializer(stddev=0.5))    #[]
+            
+            #Enocer
+            encoder_outputs = encoder(embedded_inputs, input_lengths, is_training, 512, 5, 256)
 
-            x = embedded_inputs
-            
-            #3 Conv Layers
-            for i in range(3):
-                x = tf.layers.conv1d(x,filters=512,kernel_size=5,padding='same',activation=tf.nn.relu,name='Encoder_{}'.format(i))
-                x = tf.layers.batch_normalization(x, training=is_training)
-                x = tf.layers.dropout(x, rate=0.5, training=is_training, name='dropout_{}'.format(i))
-            encoder_conv_output = x
-            
-            #bi-directional LSTM
-            cell_fw= ZoneoutLSTMCell(256, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='encoder_fw_LSTM')
-            cell_bw= ZoneoutLSTMCell(256, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='encoder_bw_LSTM')
-           
-            outputs, states = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, encoder_conv_output, sequence_length=input_lengths, dtype=tf.float32)
-            
-            # envoder_outpust = [N,T,2*encoder_lstm_units] = [N,T,512]
-            encoder_outputs = tf.concat(outputs, axis=2) # Concat and return forward + backward outputs
+            #Reference Encoder
+            if is_training:
+                referece_mel = mel_targets
+                ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
+
+                #Style Attention
+                style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
+                    tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
+                    hp.num_heads, hp.attention_type, hp.style_att_dim)
+                
+                embedded_tokens = style_attention.multi_head_attention()
+            else:
+                print("Use random weight for GST.")
+                random_weights = tf.random_uniform([hp.num_heads, hp.num_gst], maxval=1.0, dtype=tf.float32)
+                random_weights = tf.nn.softmax(random_weights, name="random_weights")
+                embedded_tokens = tf.matmul(random_weights, tf.nn.tanh(gst_tokens))
+                embedded_tokens = tf.reshape(embedded_tokens, [1, 1] + [hp.num_heads * gst_tokens.get_shape().as_list()[1]])
+
+            # Add style embedding to every text encoder state
+            style_embeddings = tf.tile(embedded_tokens, [1, shape_list(encoder_outputs)[1], 1]) # [N, T_in, 128]
+            encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
             
         with tf.variable_scope('Decoder') as scope:
             
@@ -82,14 +93,14 @@ class Tacotron2():
             decoder_lstm = [ZoneoutLSTMCell(1024, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='decoder_LSTM_{}'.format(i+1)) for i in range(2)]
             
             decoder_lstm = tf.contrib.rnn.MultiRNNCell(decoder_lstm, state_is_tuple=True)
-            decoder_init_state = decoder_lstm.zero_state(batch_size=batch_size, dtype=tf.float32) #tensorflow1에는 없음
+            decoder_init_state = decoder_lstm.zero_state(batch_size=batch_size, dtype=tf.float32)
             
             attention_cell = AttentionWrapper(decoder_lstm, attention_mechanism, initial_cell_state=decoder_init_state, alignment_history=True, output_attention=False)
 
             # attention_state_size = 256
             # Decoder input -> prenet -> decoder_lstm -> concat[output, attention]
             dec_outputs = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
-            dec_outputs_cell = OutputProjectionWrapper(dec_outputs,(hp.num_mels) * hp.outputs_per_step)
+            dec_outputs_cell = OutputProjectionWrapper(dec_outputs, (hp.num_mels) * hp.outputs_per_step)
 
             if is_training:
                 helper = TacoTrainingHelper(inputs, mel_targets, hp.num_mels, hp.outputs_per_step)
@@ -105,7 +116,7 @@ class Tacotron2():
             decoder_mel_outputs = tf.reshape(decoder_outputs[:,:,:hp.num_mels * hp.outputs_per_step], [batch_size, -1, hp.num_mels])  # [N, T_out, M]
             #stop_token_outputs = tf.reshape(decoder_outputs[:,:,hp.num_mels * hp.outputs_per_step:], [batch_size, -1]) # [N,iters]
             
-     # Postnet
+            # Postnet
             x = decoder_mel_outputs
             for i in range(5):
                 activation = tf.nn.tanh if i != (4) else None
@@ -127,18 +138,21 @@ class Tacotron2():
 			
             self.inputs = inputs
             self.input_lengths = input_lengths
+            self.ref_outputs = ref_outputs
             self.decoder_mel_outputs = decoder_mel_outputs
+            self.style_embeddings = style_embeddings
             self.mel_outputs = mel_outputs
             self.linear_outputs = linear_outputs
             self.alignments = alignments
             self.mel_targets = mel_targets
             self.linear_targets = linear_targets
+            self.referece_mel = referece_mel
             #self.stop_token_targets = stop_token_targets
             #self.stop_token_outputs = stop_token_outputs
             self.all_vars = tf.trainable_variables()
             log('Initialized Tacotron model. Dimensions: ')
-            log('  embedding:               %d' % embedded_inputs.shape[-1])
-            # log('  prenet out:              %d' % prenet_outputs.shape[-1])
+            log('  text embedding:               %d' % embedded_inputs.shape[-1])
+            log('  style embedding:              %d' % style_embeddings.shape[-1])
             log('  encoder out:             %d' % encoder_outputs.shape[-1])
             log('  attention out:           %d' % attention_cell.output_size)
             #log('  concat attn & out:       %d' % concat_cell.output_size)
