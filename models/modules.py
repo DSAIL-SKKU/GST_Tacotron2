@@ -33,6 +33,27 @@ def prenet(inputs, is_training, layer_sizes, scope=None):
 	return x
 
 
+def reference_encoder(inputs, filters, kernel_size, strides, encoder_cell, is_training, scope='ref_encoder'):
+  with tf.variable_scope(scope or 'ref_encoder'):
+    ref_outputs = tf.expand_dims(inputs, axis=-1)
+    # CNN stack
+    for i, channel in enumerate(filters):
+      ref_outputs = conv2d(ref_outputs, channel, kernel_size, strides, tf.nn.relu, is_training, 'conv2d_%d' % i)
+
+    shapes = shape_list(ref_outputs)
+    ref_outputs = tf.reshape(
+      ref_outputs, 
+      shapes[:-2] + [shapes[2] * shapes[3]])
+    # RNN
+    encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+      encoder_cell,
+      ref_outputs,
+      dtype=tf.float32)
+
+    reference_state = tf.layers.dense(encoder_outputs[:,-1,:], 128, activation=tf.nn.tanh) # [N, 128]
+    return reference_state
+
+
 def encoder_cbhg(inputs, input_lengths, is_training, depth):
 	"""
 	Args:
@@ -168,7 +189,19 @@ def conv1d(inputs, kernel_size, channels, activation, is_training, scope):
 			activation=activation,
 			padding='same') # return output tensor
 		return tf.layers.batch_normalization(conv1d_output, training=is_training)
-    
+
+def conv2d(inputs, filters, kernel_size, strides, activation, is_training, scope):
+  with tf.variable_scope(scope):
+    conv2d_output = tf.layers.conv2d(
+      inputs,
+      filters=filters,
+      kernel_size=kernel_size,
+      strides=strides,
+      padding='same')
+    conv2d_output = tf.layers.batch_normalization(conv2d_output, training=is_training)
+    if activation is not None:
+      conv2d_output = activation(conv2d_output)
+    return conv2d_output    
 
 class ZoneoutLSTMCell(RNNCell):
     '''Wrapper for tf LSTM to create Zoneout LSTM Cell
