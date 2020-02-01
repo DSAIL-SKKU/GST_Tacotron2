@@ -62,8 +62,8 @@ Pull requests are welcome!
    ```
    python3 train.py
    ```
-   you can choose tacotron model between Tacotron1 and Tacotron2 by model in hparams.py
-   Tunable hyperparameters are found in [hparams.py](hparams.py). You can adjust these at the command
+   -you can choose tacotron model between Tacotron1 and Tacotron2 by model in hparams.py
+   -Tunable hyperparameters are found in [hparams.py](hparams.py). You can adjust these at the command
    line using the `--hparams` flag, for example `--hparams="model=tacotron2,gst_index=2"`.
    Hyperparameters should generally be set to the same values at both training and eval time.
    The default hyperparameters are recommended for LJ Speech and other English-language data.
@@ -88,7 +88,7 @@ Pull requests are welcome!
    ```
    python3 eval.py --checkpoint ~/tacotron/logs-tacotron/model.ckpt-185000 --reference_audio /path/to/ref_audio
    ```
-   If you don't use the `--reference_audio`, you can select and scale style by gst_index, gst_scale in hparams.py
-   If you set the `--hparams` flag when training, set the same value here.
+   -If you don't use the `--reference_audio`, you can select and scale style by gst_index, gst_scale in hparams.py
+   -If you set the `--hparams` flag when training, set the same value here.
 
 
