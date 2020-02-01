@@ -6,7 +6,7 @@ from util.infolog import log
 from util.ops import shape_list
 from .helpers import TacoTestHelper, TacoTrainingHelper
 from .modules import encoder, reference_encoder, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention, BahdanauStepwiseMonotonicAttention
-from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper
+from .rnn_wrappers import DecoderPrenetWrapper
 from .style_attention import MultiheadAttention
 
 class Tacotron2():
@@ -30,7 +30,7 @@ class Tacotron2():
             of steps in the output time series, F is num_freq, and values are entries in the linear
             spectrogram. Only needed for training.
         '''
-        with tf.variable_scope('Encoder') as scope:
+        with tf.variable_scope('Embedding') as scope:
             is_training = linear_targets is not None
             batch_size = tf.shape(inputs)[0]
             hp = self._hparams
@@ -45,7 +45,8 @@ class Tacotron2():
             #Global Style Token Embeddings
             gst_tokens = tf.get_variable('style_tokens', [hp.num_gst, hp.style_embed_depth//hp.num_heads], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.5))    #[]
-            
+        
+        with tf.variable_scope('Encoder') as scope:    
             #Enocer
             encoder_outputs = encoder(embedded_inputs, input_lengths, is_training, 512, 5, 256)
 
@@ -72,8 +73,9 @@ class Tacotron2():
             # Add style embedding to every text encoder state
             style_embeddings = tf.tile(embedded_tokens, [1, shape_list(encoder_outputs)[1], 1]) # [N, T_in, 128]
             encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
-            
-        with tf.variable_scope('Decoder') as scope:
+
+
+        with tf.variable_scope('Decoder') as scope:    
             
             if hp.attention_type == 'loc_sen': # Location Sensitivity Attention
                 attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
