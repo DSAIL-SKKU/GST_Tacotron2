@@ -1,7 +1,7 @@
 # GST-Tacotron
 
 Korean Speech Synthesis with GST-Tacotron which based on both of Tacotron1 and Tacotron2 model
-
+Note that this repo is based on https://github.com/syang1993/gst-tacotron
 
 ## Background
 
