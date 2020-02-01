@@ -1,9 +1,10 @@
 import argparse
 import os
 import re
+import numpy as np
 from hparams import hparams, hparams_debug_string
 from synthesizer import Synthesizer
-
+from util import audio
 
 sentences = [
   # From January 21, 2020 Digital Daily:
@@ -29,14 +30,21 @@ def get_output_base_path(checkpoint_path):
 
 def run_eval(args):
     print(hparams_debug_string())
+    reference_mel = None
     synth = Synthesizer()
-    synth.load(args.checkpoint)
+    synth.load(args.checkpoint, args.reference_audio)
+
+    if args.reference_audio is not None:
+        ref_wav = audio.load_wav(args.reference_audio)
+        reference_mel = audio.melspectrogram(ref_wav).astype(np.float32).T
+
     base_path = get_output_base_path(args.checkpoint)
+
     for i, text in enumerate(sentences):
         path = '%s-%d.wav' % (base_path, i)
         print('Synthesizing: %s' % path)
         with open(path, 'wb') as f:
-            f.write(synth.synthesize(text))
+            f.write(synth.synthesize(text, referece_mel=reference_mel))
 
 
 def main():
@@ -45,6 +53,7 @@ def main():
     parser.add_argument('--hparams', default='',
         help='Hyperparameter overrides as a comma-separated list of name=value pairs')
     parser.add_argument('--gpu', default='1')
+    parser.add_argument('--reference_adio', default=None, help='Reference audio path')
     args = parser.parse_args()
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

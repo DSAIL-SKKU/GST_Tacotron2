@@ -32,7 +32,6 @@ class Tacotron2():
         '''
         with tf.variable_scope('Encoder') as scope:
             is_training = linear_targets is not None
-            is_teacher_force_generating = mel_targets is not None
             batch_size = tf.shape(inputs)[0]
             hp = self._hparams
 
@@ -53,6 +52,8 @@ class Tacotron2():
             #Reference Encoder
             if is_training:
                 referece_mel = mel_targets
+            
+            if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
 
                 #Style Attention
@@ -79,14 +80,13 @@ class Tacotron2():
                                     mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
             elif hp.attention_type == 'gmm': # GMM Attention
                 attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths) 
-            elif hp.attention_type == 'step_bah':
+            elif hp.attention_type == 'step_bah': # Stepwise 
                 attention_mechanism = BahdanauStepwiseMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, mode="parallel")
-            elif hp.attention_type == 'mon_bah':
+            elif hp.attention_type == 'mon_bah': # Monotonic Attention
                 attention_mechanism = BahdanauMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, normalize=True)
-            elif hp.attention_type == 'loung':
+            elif hp.attention_type == 'loung': # Loung Attention
                 attention_mechanism = LuongAttention(128, encoder_outputs, memory_sequence_length = input_lengths, scale=True) 
 
-            # attention_mechanism = LocationSensitiveAttention(128, encoder_outputs, hparams=hp, is_training=is_training, mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
             #mask_encoder: whether to mask encoder padding while computing location sensitive attention. Set to True for better prosody but slower convergence.
             #cumulate_weights: Whether to cumulate (sum) all previous attention weights or simply feed previous weights (Recommended: True)
             
