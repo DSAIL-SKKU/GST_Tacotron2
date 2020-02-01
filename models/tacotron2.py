@@ -64,7 +64,6 @@ class Tacotron2():
                 
                 embedded_tokens = style_attention.multi_head_attention()
             else:
-                print("Use random weight for GST.")
                 random_weights = tf.constant([0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index), dtype=tf.float32)
                 random_weights = tf.expand_dims(random_weights, axis=0)
                 gst_tokens = tf.tile(gst_tokens, [1, hp.num_heads])

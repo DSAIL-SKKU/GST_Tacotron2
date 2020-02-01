@@ -48,11 +48,11 @@ class Tacotron():
                 
                 embedded_tokens = style_attention.multi_head_attention()
             else:
-                print("Use random weight for GST.")
-                random_weights = tf.random_uniform([hp.num_heads, hp.num_gst], maxval=1.0, dtype=tf.float32)
-                random_weights = tf.nn.softmax(random_weights, name="random_weights")
+                random_weights = tf.constant([0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index), dtype=tf.float32)
+                random_weights = tf.expand_dims(random_weights, axis=0)
+                gst_tokens = tf.tile(gst_tokens, [1, hp.num_heads])
                 embedded_tokens = tf.matmul(random_weights, tf.nn.tanh(gst_tokens))
-                embedded_tokens = tf.reshape(embedded_tokens, [1, 1] + [hp.num_heads * gst_tokens.get_shape().as_list()[1]])
+                embedded_tokens = hp.gst_scale*tf.expand_dims(embedded_tokens, axis=0)
             
             style_embeddings = tf.tile(embedded_tokens, [1, shape_list(encoder_outputs)[1], 1]) # [N, T_in, 128]
             encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
