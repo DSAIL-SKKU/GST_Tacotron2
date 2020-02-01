@@ -29,6 +29,8 @@ hparams = tf.contrib.training.HParams(
     ref_depth=128,
     style_att_type='mlp_attention',
     style_att_dim=128,
+    gst_index=3,
+    gst_scale=0.3,
 
     #Attention
     attention_depth=256,

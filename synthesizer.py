@@ -29,7 +29,7 @@ class Synthesizer:
         saver = tf.train.Saver()
         saver.restore(self.session, checkpoint_path)
 
-    def synthesize(self, text, referece_mel=None):
+    def synthesize(self, text, referece_mel=None, gst_index=None, gst_scale=None):
         cleaner_names = [x.strip() for x in hparams.cleaners.split(',')]
         seq = text_to_sequence(text, cleaner_names)
         feed_dict = {
@@ -38,7 +38,7 @@ class Synthesizer:
         }
         if referece_mel is not None:
             referece_mel = np.expand_dims(referece_mel, 0)
-            feed_dict.update({self.model.mel_targets: np.asarray(referece_mel, dtype=np.float32)})
+            feed_dict.update({self.model.referece_mel: np.asarray(referece_mel, dtype=np.float32)})
         
         wav= self.session.run(self.wav_output, feed_dict=feed_dict)
         wav = audio.inv_preemphasis(wav)
