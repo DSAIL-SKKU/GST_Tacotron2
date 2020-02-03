@@ -42,7 +42,7 @@ hparams = tf.contrib.training.HParams(
     attention_win_size = 7,
     attention_type = 'step_bah',
     cumulative_weights = True,
-    num_heads=6,
+    num_heads=4,
 
     # Model:
     model='tacotron2',
