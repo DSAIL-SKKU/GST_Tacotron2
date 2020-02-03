@@ -40,7 +40,7 @@ hparams = tf.contrib.training.HParams(
     synthesis_constraint = False,
     synthesis_constraint_type = 'window',
     attention_win_size = 7,
-    attention_type = 'step_bah',
+    attention_type = 'mon_bah',
     cumulative_weights = True,
     num_heads=4,
 
