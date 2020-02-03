@@ -53,6 +53,7 @@ hparams = tf.contrib.training.HParams(
     reg_weight = 1e-6,
     decoder_depth=256,
     RNN_type='LSTM_zoneout',
+    tacotron_zoneout_rate=0.1,
 
     # Training:
     batch_size=32,
