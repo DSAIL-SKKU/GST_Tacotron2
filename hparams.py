@@ -45,13 +45,14 @@ hparams = tf.contrib.training.HParams(
     num_heads=4,
 
     # Model:
-    model='tacotron2',
+    model='tacotron',
     outputs_per_step=5,
     prenet_depths=[256, 256],
     encoder_depth=256,
     postnet_depth=256,
     reg_weight = 1e-6,
     decoder_depth=256,
+    RNN_type='LSTM_zoneout',
 
     # Training:
     batch_size=32,

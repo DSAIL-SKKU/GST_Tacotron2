@@ -44,7 +44,7 @@ class Tacotron():
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
-                    hp.num_heads, hp.attention_type, hp.style_att_dim)
+                    num_heads = hp.num_heads, attention_type = hp.style_att_type, num_unist = hp.style_att_dim)
                 
                 embedded_tokens = style_attention.multi_head_attention()
             else:
