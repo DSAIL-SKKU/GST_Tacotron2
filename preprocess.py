@@ -2,7 +2,7 @@ import argparse
 import os
 from multiprocessing import cpu_count
 from tqdm import tqdm
-from datasets import blizzard, ljspeech, bible
+from datasets import blizzard, ljspeech, bible, kss
 from hparams import hparams
 
 
@@ -34,7 +34,7 @@ def preprocess_kss(args):
     in_dir = os.path.join(args.base_dir, 'kss')
     out_dir = os.path.join(args.base_dir, args.output)
     os.makedirs(out_dir, exist_ok=True)
-    metadata = bible.build_from_path(in_dir, out_dir, args.num_workers, tqdm=tqdm)
+    metadata = kss.build_from_path(in_dir, out_dir, args.num_workers, tqdm=tqdm)
     write_metadata(metadata, out_dir)
 
 
