@@ -13,7 +13,7 @@ class Tacotron2():
     def __init__(self, hparams):
         self._hparams = hparams
 
-    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, stop_token_targets=None, referece_mel=None):
+    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, referece_mel=None):
         '''Initializes the model for inference.
 
         Sets "mel_outputs", "linear_outputs", and "alignments" fields.
@@ -30,7 +30,7 @@ class Tacotron2():
             of steps in the output time series, F is num_freq, and values are entries in the linear
             spectrogram. Only needed for training.
         '''
-        with tf.variable_scope('Embedding') as scope:
+        with tf.variable_scope('inference') as scope:
             is_training = linear_targets is not None
             batch_size = tf.shape(inputs)[0]
             hp = self._hparams
@@ -45,8 +45,8 @@ class Tacotron2():
             #Global Style Token Embeddings
             gst_tokens = tf.get_variable('style_tokens', [hp.num_gst, hp.style_embed_depth//hp.num_heads], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.5))    #[]
-        
-        with tf.variable_scope('Encoder') as scope:    
+            self.gst_tokens = gst_tokens
+\   
             #Enocer
             encoder_outputs = encoder(embedded_inputs, input_lengths, is_training, 512, 5, 256)
 
@@ -56,7 +56,8 @@ class Tacotron2():
             
             if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
-                self.ref_outputs = ref_outputs     
+                self.ref_outputs = ref_outputs
+
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
@@ -141,6 +142,7 @@ class Tacotron2():
             self.inputs = inputs
             self.input_lengths = input_lengths
             self.decoder_mel_outputs = decoder_mel_outputs
+            self.encoder_outputs = encoder_outputs
             self.style_embeddings = style_embeddings
             self.mel_outputs = mel_outputs
             self.linear_outputs = linear_outputs
