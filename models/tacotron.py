@@ -6,14 +6,14 @@ from util.infolog import log
 from util.ops import shape_list
 from .helpers import TacoTestHelper, TacoTrainingHelper
 from .modules import encoder_cbhg, post_cbhg, prenet, reference_encoder, ZoneoutLSTMCell
-from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper
+from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper, ZoneoutWrapper
 from .style_attention import MultiheadAttention
 
 class Tacotron():
     def __init__(self, hparams):
         self._hparams = hparams
 
-    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None):
+    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, reference_mel=None):
 
         with tf.variable_scope('inference') as scope:
             is_training = linear_targets is not None
@@ -40,7 +40,7 @@ class Tacotron():
             
             if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
-
+                self.ref_outputs = ref_outputs
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
@@ -74,7 +74,7 @@ class Tacotron():
                 output_attention=False)  # [N, T_in, attention_depth=256]
 
             # Apply prenet before concatenation in AttentionWrapper.
-            attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
+            # attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
 
             # Concatenate attention context vector and RNN cell output into a 2*attention_depth=512D vector.
             concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)  # [N, T_in, 2*attention_depth=512]
@@ -82,8 +82,8 @@ class Tacotron():
             # Decoder (layers specified bottom to top):
             decoder_cell = MultiRNNCell([
                 OutputProjectionWrapper(concat_cell, hp.decoder_depth),
-                ResidualWrapper(RNN_mechanism),
-                ResidualWrapper(RNN_mechanism),
+                ResidualWrapper(ZoneoutWrapper(LSTMCell(hp.decoder_depth), 0.1)),
+                ResidualWrapper(ZoneoutWrapper(LSTMCell(hp.decoder_depth), 0.1)),
 
             ], state_is_tuple=True)  # [N, T_in, decoder_depth=256]
 
@@ -114,13 +114,17 @@ class Tacotron():
             self.inputs = inputs
             self.input_lengths = input_lengths
             self.mel_outputs = mel_outputs
+            self.encoder_outputs = encoder_outputs
+            self.embedded_tokens = embedded_tokens
             self.linear_outputs = linear_outputs
             self.alignments = alignments
             self.mel_targets = mel_targets
             self.linear_targets = linear_targets
+            self.reference_mel = reference_mel
 
             log('Initialized Tacotron model. Dimensions: ')
-            log('  embedding:               %d' % embedded_inputs.shape[-1])
+            log('  style embedding:         %d' % embedded_tokens.shape[-1])
+            log('  text embedding:               %d' % embedded_inputs.shape[-1])
             log('  prenet out:              %d' % prenet_outputs.shape[-1])
             log('  encoder out:             %d' % encoder_outputs.shape[-1])
             log('  attention out:           %d' % attention_cell.output_size)
