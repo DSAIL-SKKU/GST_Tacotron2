@@ -29,6 +29,7 @@ class Tacotron():
             # Global Style Token Embeddings
             gst_tokens = tf.get_variable('style_tokens', [hp.num_gst, hp.style_embed_depth//hp.num_heads], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.5))    #[]
+            self.gst_tokens=gst_tokens
 
             # Encoder
             prenet_outputs = prenet(embedded_inputs, is_training, hp.prenet_depths)  # [N, T_in, prenet_depths[-1]=128]
@@ -58,13 +59,13 @@ class Tacotron():
             encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
             
             #GRU Mechanism
-            if hp.RNN_type == 'GRU':
-                RNN_mechanism = GRUCell(hp.decoder_depth)
-            elif hp.RNN_type == 'LSTM_zoneout':
-                RNN_mechanism =ZoneoutLSTMCell(hp.decoder_depth, is_training, zoneout_factor_cell=hp.tacotron_zoneout_rate,
-                                    zoneout_factor_output=hp.tacotron_zoneout_rate)
-            elif hp.RNN_type == 'LSTM':
-                RNN_mechanism = LSTMCell(hp.decoder_depth)
+            # if hp.RNN_type == 'GRU':
+            #     RNN_mechanism = GRUCell(hp.decoder_depth)
+            # elif hp.RNN_type == 'LSTM_zoneout':
+            #     RNN_mechanism =ZoneoutLSTMCell(hp.decoder_depth, is_training, zoneout_factor_cell=hp.tacotron_zoneout_rate,
+            #                         zoneout_factor_output=hp.tacotron_zoneout_rate)
+            # elif hp.RNN_type == 'LSTM':
+            #     RNN_mechanism = LSTMCell(hp.decoder_depth)
 
             # Attention
             attention_cell = AttentionWrapper(
