@@ -1,11 +1,11 @@
 import tensorflow as tf
 from tensorflow.contrib.rnn import GRUCell, MultiRNNCell, OutputProjectionWrapper, ResidualWrapper, LSTMCell
-from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, AttentionWrapper
+from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, AttentionWrapper, BahdanauMonotonicAttention, LuongAttention
 from text.symbols import symbols
 from util.infolog import log
 from util.ops import shape_list
 from .helpers import TacoTestHelper, TacoTrainingHelper
-from .modules import encoder_cbhg, post_cbhg, prenet, reference_encoder, ZoneoutLSTMCell
+from .modules import encoder_cbhg, post_cbhg, prenet, reference_encoder, ZoneoutLSTMCell, LocationSensitiveAttention, GmmAttention, BahdanauStepwiseMonotonicAttention
 from .rnn_wrappers import DecoderPrenetWrapper, ConcatOutputAndAttentionWrapper, ZoneoutWrapper
 from .style_attention import MultiheadAttention
 
@@ -42,6 +42,7 @@ class Tacotron():
             if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
                 self.ref_outputs = ref_outputs
+                
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
@@ -68,9 +69,21 @@ class Tacotron():
             #     RNN_mechanism = LSTMCell(hp.decoder_depth)
 
             # Attention
+            if hp.attention_type == 'loc_sen': # Location Sensitivity Attention
+                attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
+                                    mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
+            elif hp.attention_type == 'gmm': # GMM Attention
+                attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths) 
+            elif hp.attention_type == 'step_bah': # Stepwise 
+                attention_mechanism = BahdanauStepwiseMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, mode="parallel")
+            elif hp.attention_type == 'mon_bah': # Monotonic Attention
+                attention_mechanism = BahdanauMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, normalize=True)
+            elif hp.attention_type == 'loung': # Loung Attention
+                attention_mechanism = LuongAttention(128, encoder_outputs, memory_sequence_length = input_lengths, scale=True) 
+
             attention_cell = AttentionWrapper(
                 GRUCell(hp.attention_depth),
-                BahdanauAttention(hp.attention_depth, encoder_outputs),
+                attention_mechanism,
                 alignment_history=True,
                 output_attention=False)  # [N, T_in, attention_depth=256]
 
