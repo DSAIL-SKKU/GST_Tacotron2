@@ -53,9 +53,7 @@ def main():
     parser.add_argument('--hparams', default='',
         help='Hyperparameter overrides as a comma-separated list of name=value pairs')
     parser.add_argument('--gpu', default='1')
-    parser.add_argument('--reference_adio', default=None, help='Reference audio path')
-    # parser.add_argument('--gst', default=None, help='GST index')
-    # parser.add_argument('--scale', default=None, help='GST scaling')
+    parser.add_argument('--reference_audio', default=None, help='Reference audio path')
     args = parser.parse_args()
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
