@@ -129,7 +129,7 @@ class Tacotron():
             self.input_lengths = input_lengths
             self.mel_outputs = mel_outputs
             self.encoder_outputs = encoder_outputs
-            self.embedded_tokens = embedded_tokens
+            self.style_embeddings = style_embeddings
             self.linear_outputs = linear_outputs
             self.alignments = alignments
             self.mel_targets = mel_targets
@@ -137,7 +137,7 @@ class Tacotron():
             self.reference_mel = reference_mel
 
             log('Initialized Tacotron model. Dimensions: ')
-            log('  style embedding:         %d' % embedded_tokens.shape[-1])
+            log('  style embedding:         %d' % style_embeddings.shape[-1])
             log('  text embedding:               %d' % embedded_inputs.shape[-1])
             log('  prenet out:              %d' % prenet_outputs.shape[-1])
             log('  encoder out:             %d' % encoder_outputs.shape[-1])
