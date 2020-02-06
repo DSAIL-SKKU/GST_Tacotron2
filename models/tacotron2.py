@@ -56,7 +56,7 @@ class Tacotron2():
             
             if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
-
+                self.ref_outputs = ref_outputs     
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
@@ -140,7 +140,6 @@ class Tacotron2():
 			
             self.inputs = inputs
             self.input_lengths = input_lengths
-            self.ref_outputs = ref_outputs
             self.decoder_mel_outputs = decoder_mel_outputs
             self.style_embeddings = style_embeddings
             self.mel_outputs = mel_outputs
