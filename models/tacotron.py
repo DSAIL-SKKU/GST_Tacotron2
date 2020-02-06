@@ -42,7 +42,7 @@ class Tacotron():
             if referece_mel is not None:
                 ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
                 self.ref_outputs = ref_outputs
-                
+
                 #Style Attention
                 style_attention = MultiheadAttention(tf.expand_dims(ref_outputs, axis=1), 
                     tf.tanh(tf.tile(tf.expand_dims(gst_tokens, axis=0), [batch_size,1,1])), 
@@ -88,7 +88,7 @@ class Tacotron():
                 output_attention=False)  # [N, T_in, attention_depth=256]
 
             # Apply prenet before concatenation in AttentionWrapper.
-            # attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
+            attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
 
             # Concatenate attention context vector and RNN cell output into a 2*attention_depth=512D vector.
             concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)  # [N, T_in, 2*attention_depth=512]
