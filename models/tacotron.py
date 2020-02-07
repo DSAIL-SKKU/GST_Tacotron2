@@ -107,9 +107,9 @@ class Tacotron():
             decoder_init_state = output_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
 
             if is_training:
-                helper = TacoTrainingHelper(inputs, mel_targets, hp)
+                helper = TacoTrainingHelper(inputs, mel_targets, hp.num_mels, hp.outputs_per_step)
             else:
-                helper = TacoTestHelper(batch_size, hp)
+                helper = TacoTestHelper(batch_size, hp.num_mels, hp.outputs_per_step)
 
             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 BasicDecoder(output_cell, helper, decoder_init_state),
