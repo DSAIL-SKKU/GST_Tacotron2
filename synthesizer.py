@@ -19,7 +19,7 @@ class Synthesizer:
 
         with tf.variable_scope('model') as scope:
             self.model = create_model(model_name, hparams)
-            self.model.initialize(inputs, input_lengths, referece_mel=reference_mel)
+            self.model.initialize(inputs, input_lengths, reference_mel=reference_mel)
             self.wav_output = audio.inv_spectrogram_tensorflow(self.model.linear_outputs[0])
             self.alignments = self.model.alignments[0]
 
@@ -29,16 +29,16 @@ class Synthesizer:
         saver = tf.train.Saver()
         saver.restore(self.session, checkpoint_path)
 
-    def synthesize(self, text, referece_mel=None, gst_index=None, gst_scale=None):
+    def synthesize(self, text, reference_mel=None, gst_index=None, gst_scale=None):
         cleaner_names = [x.strip() for x in hparams.cleaners.split(',')]
         seq = text_to_sequence(text, cleaner_names)
         feed_dict = {
             self.model.inputs: [np.asarray(seq, dtype=np.int32)],
             self.model.input_lengths: np.asarray([len(seq)], dtype=np.int32)
         }
-        if referece_mel is not None:
-            referece_mel = np.expand_dims(referece_mel, 0)
-            feed_dict.update({self.model.referece_mel: np.asarray(referece_mel, dtype=np.float32)})
+        if reference_mel is not None:
+            reference_mel = np.expand_dims(reference_mel, 0)
+            feed_dict.update({self.model.reference_mel: np.asarray(reference_mel, dtype=np.float32)})
         
         wav= self.session.run(self.wav_output, feed_dict=feed_dict)
         wav = audio.inv_preemphasis(wav)
