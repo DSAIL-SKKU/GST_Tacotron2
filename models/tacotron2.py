@@ -13,7 +13,7 @@ class Tacotron2():
     def __init__(self, hparams):
         self._hparams = hparams
 
-    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, referece_mel=None):
+    def initialize(self, inputs, input_lengths, mel_targets=None, linear_targets=None, reference_mel=None):
         '''Initializes the model for inference.
 
         Sets "mel_outputs", "linear_outputs", and "alignments" fields.
@@ -148,7 +148,7 @@ class Tacotron2():
             self.alignments = alignments
             self.mel_targets = mel_targets
             self.linear_targets = linear_targets
-            self.referece_mel = referece_mel
+            self.reference_mel = reference_mel
             #self.stop_token_targets = stop_token_targets
             #self.stop_token_outputs = stop_token_outputs
             self.all_vars = tf.trainable_variables()
