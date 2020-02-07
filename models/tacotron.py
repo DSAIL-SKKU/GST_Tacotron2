@@ -37,10 +37,10 @@ class Tacotron():
                                            hp.encoder_depth)
             #Reference Encoder
             if is_training:
-                referece_mel = mel_targets
+                reference_mel = mel_targets
             
-            if referece_mel is not None:
-                ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
+            if reference_mel is not None:
+                ref_outputs = reference_encoder(reference_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
                 self.ref_outputs = ref_outputs
 
                 #Style Attention
@@ -50,12 +50,13 @@ class Tacotron():
                 
                 embedded_tokens = style_attention.multi_head_attention()
             else:
-                random_weights = tf.constant([0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index), dtype=tf.float32)
-                random_weights = tf.expand_dims(random_weights, axis=0)
-                gst_tokens = tf.tile(gst_tokens, [1, hp.num_heads])
+                random_weights = tf.constant(4*[[0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index)], dtype=tf.float32)
+                # random_weights = tf.nn.softmax(random_weights, name="random_weights")
+                # gst_tokens = tf.tile(gst_tokens, [1, hp.num_heads])
                 embedded_tokens = tf.matmul(random_weights, tf.nn.tanh(gst_tokens))
-                embedded_tokens = hp.gst_scale*tf.expand_dims(embedded_tokens, axis=0)
-            
+                embedded_tokens = hp.gst_scale*embedded_tokens
+                style_embeddings = tf.reshape(embedded_tokens, [1, 1] + [hp.num_heads * gst_tokens.get_shape().as_list()[1]])
+
             style_embeddings = tf.tile(embedded_tokens, [1, shape_list(encoder_outputs)[1], 1]) # [N, T_in, 128]
             encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
             
@@ -88,7 +89,7 @@ class Tacotron():
                 output_attention=False)  # [N, T_in, attention_depth=256]
 
             # Apply prenet before concatenation in AttentionWrapper.
-            attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
+            # attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
 
             # Concatenate attention context vector and RNN cell output into a 2*attention_depth=512D vector.
             concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)  # [N, T_in, 2*attention_depth=512]
@@ -106,9 +107,9 @@ class Tacotron():
             decoder_init_state = output_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
 
             if is_training:
-                helper = TacoTrainingHelper(inputs, mel_targets, hp.num_mels, hp.outputs_per_step)
+                helper = TacoTrainingHelper(inputs, mel_targets, hp)
             else:
-                helper = TacoTestHelper(batch_size, hp.num_mels, hp.outputs_per_step)
+                helper = TacoTestHelper(batch_size, hp)
 
             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 BasicDecoder(output_cell, helper, decoder_init_state),

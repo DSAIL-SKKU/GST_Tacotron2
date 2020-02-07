@@ -52,10 +52,10 @@ class Tacotron2():
 
             #Reference Encoder
             if is_training:
-                referece_mel = mel_targets
+                reference_mel = mel_targets
             
-            if referece_mel is not None:
-                ref_outputs = reference_encoder(referece_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
+            if reference_mel is not None:
+                ref_outputs = reference_encoder(reference_mel, hp.ref_filters, (3,3), (2,2), GRUCell(hp.ref_depth), is_training)
                 self.ref_outputs = ref_outputs
 
                 #Style Attention
