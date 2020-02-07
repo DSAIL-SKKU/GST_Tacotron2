@@ -45,7 +45,7 @@ def run_eval(args):
         path = '%s-%d.wav' % (base_path, i)
         print('Synthesizing: %s' % path)
         with open(path, 'wb') as f:
-            f.write(synth.synthesize(text, referece_mel=reference_mel))
+            f.write(synth.synthesize(text, reference_mel=reference_mel))
 
 
 def main():
