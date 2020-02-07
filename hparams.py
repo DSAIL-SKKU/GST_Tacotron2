@@ -16,7 +16,7 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Encoder:
-    embed_depth=512,
+    embed_depth=256,
     encoder_conv_filter=512,
     encoder_conv_kernel=5,
     encoder_stack_size=3,
@@ -40,14 +40,14 @@ hparams = tf.contrib.training.HParams(
     synthesis_constraint = False,
     synthesis_constraint_type = 'window',
     attention_win_size = 7,
-    attention_type = 'step_bah',
+    attention_type = 'mon_bah',
     cumulative_weights = True,
     num_heads=4,
 
     # Model:
     model='tacotron',
     outputs_per_step=5,
-    prenet_depths=[256, 256],
+    prenet_depths=[256, 128],
     encoder_depth=256,
     postnet_depth=256,
     reg_weight = 1e-6,
