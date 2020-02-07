@@ -37,7 +37,7 @@ class TacoTestHelper(Helper):
       finished = tf.reduce_all(tf.equal(outputs, self._end_token), axis=1)
       # Feed last output frame as next input. outputs is [N, output_dim * r]
       next_inputs = outputs[:, -self._output_dim:]
-      next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
+    #   next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
       return (finished, next_inputs, state)
 
 
@@ -78,7 +78,7 @@ class TacoTrainingHelper(Helper):
     with tf.name_scope(name or 'TacoTrainingHelper'):
       finished = (time + 1 >= self._lengths)
       next_inputs = self._targets[:, time, :]
-      next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
+    #   next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
       return (finished, next_inputs, state)
 
 
