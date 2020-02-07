@@ -65,12 +65,12 @@ class Tacotron2():
                 
                 embedded_tokens = style_attention.multi_head_attention()
             else:
-                random_weights = tf.constant(4*[[0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index)], dtype=tf.float32)
+                random_weights = tf.constant(4*[[0]*(hp.gst_index-1)+[1]+[0]*(hp.num_gst-hp.gst_index)], dtype=tf.float32, name="random_weights")
                 # random_weights = tf.nn.softmax(random_weights, name="random_weights")
                 # gst_tokens = tf.tile(gst_tokens, [1, hp.num_heads])
                 embedded_tokens = tf.matmul(random_weights, tf.nn.tanh(gst_tokens))
                 embedded_tokens = hp.gst_scale*embedded_tokens
-                style_embeddings = tf.reshape(embedded_tokens, [1, 1] + [hp.num_heads * gst_tokens.get_shape().as_list()[1]])
+                embedded_tokens = tf.reshape(embedded_tokens, [1, 1] + [hp.num_heads * gst_tokens.get_shape().as_list()[1]])
 
             # Add style embedding to every text encoder state
             style_embeddings = tf.tile(embedded_tokens, [1, shape_list(encoder_outputs)[1], 1]) # [N, T_in, 128]
