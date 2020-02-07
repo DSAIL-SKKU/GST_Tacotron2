@@ -37,7 +37,7 @@ class Tacotron2():
 
             # Embeddings
             embedding_table = tf.get_variable(
-                'embedding', [len(symbols), hp.embed_depth], dtype=tf.float32,
+                'embedding', [len(symbols), hp.embed_depth2], dtype=tf.float32,
                 initializer=tf.truncated_normal_initializer(stddev=0.5))
             
             embedded_inputs = tf.nn.embedding_lookup(embedding_table, inputs)  # [N, T_in, embed_depth=256]
@@ -101,7 +101,7 @@ class Tacotron2():
 
             # attention_state_size = 256
             # Decoder input -> prenet -> decoder_lstm -> concat[output, attention]
-            dec_outputs = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
+            dec_outputs = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths2)
             dec_outputs_cell = OutputProjectionWrapper(dec_outputs, (hp.num_mels) * hp.outputs_per_step)
 
             if is_training:

@@ -17,6 +17,7 @@ hparams = tf.contrib.training.HParams(
 
     # Encoder:
     embed_depth=256,
+    embed_depth2=512,
     encoder_conv_filter=512,
     encoder_conv_kernel=5,
     encoder_stack_size=3,
@@ -48,6 +49,7 @@ hparams = tf.contrib.training.HParams(
     model='tacotron',
     outputs_per_step=5,
     prenet_depths=[256, 128],
+    prenet_depths2=[256, 256],
     encoder_depth=256,
     postnet_depth=256,
     reg_weight = 1e-6,
