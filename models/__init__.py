@@ -1,4 +1,4 @@
-from .tacotron2 import Tacotron2
+# from .tacotron2 import Tacotron2
 from .tacotron import Tacotron
 
 
