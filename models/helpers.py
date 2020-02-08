@@ -16,11 +16,11 @@ class TacoTestHelper(Helper):
     def batch_size(self):
         return self._batch_size
 
-     @property
+    @property
     def sample_ids_shape(self):
         return tf.TensorShape([])
 
-  @property
+    @property
     def sample_ids_dtype(self):
         return np.int32
 
@@ -31,7 +31,7 @@ class TacoTestHelper(Helper):
         return tf.tile([0], [self._batch_size])  # Return all 0; we ignore them
 
     def next_inputs(self, time, outputs, state, sample_ids, name=None):
-    '''Stop on EOS. Otherwise, pass the last output as the next input and pass through state.'''
+        '''Stop on EOS. Otherwise, pass the last output as the next input and pass through state.'''
         with tf.name_scope('TacoTestHelper'):
             finished = tf.reduce_all(tf.equal(outputs, self._end_token), axis=1)
             # Feed last output frame as next input. outputs is [N, output_dim * r]
@@ -55,15 +55,15 @@ class TacoTrainingHelper(Helper):
             num_steps = tf.shape(self._targets)[1]
             self._lengths = tf.tile([num_steps], [self._batch_size])
 
-  @property
+    @property
     def batch_size(self):
         return self._batch_size
 
-  @property
+    @property
     def sample_ids_shape(self):
         return tf.TensorShape([])
 
-  @property
+    @property
     def sample_ids_dtype(self):
         return np.int32
 
@@ -75,10 +75,10 @@ class TacoTrainingHelper(Helper):
 
     def next_inputs(self, time, outputs, state, sample_ids, name=None):
         with tf.name_scope(name or 'TacoTrainingHelper'):
-        finished = (time + 1 >= self._lengths)
-        next_inputs = self._targets[:, time, :]
-        next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
-        return (finished, next_inputs, state)
+            finished = (time + 1 >= self._lengths)
+            next_inputs = self._targets[:, time, :]
+            next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
+            return (finished, next_inputs, state)
 
 
 def _go_frames(batch_size, output_dim):
