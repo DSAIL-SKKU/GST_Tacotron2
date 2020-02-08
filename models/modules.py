@@ -1,37 +1,38 @@
-import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.rnn import RNNCell, GRUCell
-from tensorflow.python.ops import rnn_cell_impl
-from tensorflow.contrib.framework import nest
-from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import _bahdanau_score, _BaseAttentionMechanism, BahdanauAttention, BahdanauMonotonicAttention, AttentionWrapperState, AttentionMechanism, _BaseMonotonicAttentionMechanism, _maybe_mask_score,_prepare_memory, _monotonic_probability_fn
-from tensorflow.python.ops import array_ops, math_ops, nn_ops, variable_scope, random_ops
-from tensorflow.python.layers.core import Dense
+from tensorflow.contrib.rnn import GRUCell, RNNCell
 from util.ops import shape_list
+from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import _bahdanau_score, _BaseAttentionMechanism, BahdanauAttention
+from tensorflow.python.ops import array_ops, math_ops, nn_ops, variable_scope, random_ops
 
-import functools
-_zero_state_tensors = rnn_cell_impl._zero_state_tensors
+def prenet(inputs, is_training, layer_sizes=[256, 128], scope=None):
+  x = inputs
+  # Dropout in both training and testing
+  drop_rate = 0.5
+  with tf.variable_scope(scope or 'prenet'):
+    for i, size in enumerate(layer_sizes):
+      dense = tf.layers.dense(x, units=size, activation=tf.nn.relu, name='dense_%d' % (i+1))
+      x = tf.layers.dropout(dense, rate=drop_rate, training=True, name='dropout_%d' % (i+1))
+  return x
 
-'''
-Adding zoneoutLSTMcell and LocationSensitiveAttention function to existing code for Tacotron2
-'''
+def reference_encoder(inputs, filters, kernel_size, strides, encoder_cell, is_training, scope='ref_encoder'):
+  with tf.variable_scope(scope):
+    ref_outputs = tf.expand_dims(inputs,axis=-1)
+    # CNN stack
+    for i, channel in enumerate(filters):
+      ref_outputs = conv2d(ref_outputs, channel, kernel_size, strides, tf.nn.relu, is_training, 'conv2d_%d' % i)
 
-def prenet(inputs, is_training, layer_sizes, scope=None):
-	"""
-	Args:
-		inputs: input vector
-		is_training: dropout option
-		layer_sizes: iteration number
-	
-	Output:
-		x: prenet
-	"""
-	x = inputs
-	drop_rate = 0.5 if is_training else 0.0 # set dropout rate 0.5 (only training)
-	with tf.variable_scope(scope or 'prenet'):
-		for i, size in enumerate(layer_sizes): # iterate layer_sizes
-			dense = tf.layers.dense(x, units=size, activation=tf.nn.relu, name='dense_%d' % (i + 1))
-			x = tf.layers.dropout(dense, rate=drop_rate, training=is_training, name='dropout_%d' % (i + 1)) 
-	return x
+    shapes = shape_list(ref_outputs)
+    ref_outputs = tf.reshape(
+      ref_outputs, 
+      shapes[:-2] + [shapes[2] * shapes[3]])
+    # RNN
+    encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
+      encoder_cell,
+      ref_outputs,
+      dtype=tf.float32)
+
+    reference_state = tf.layers.dense(encoder_outputs[:,-1,:], 128, activation=tf.nn.tanh) # [N, 128]
+    return reference_state
 
 def encoder(inputs, input_lengths, is_training, filters, kernel_size, rnn_num_units, scope='Encoder'):
     with tf.variable_scope(scope or 'Encoder'):
@@ -50,162 +51,93 @@ def encoder(inputs, input_lengths, is_training, filters, kernel_size, rnn_num_un
         # envoder_outpust = [N,T,2*encoder_lstm_units] = [N,T,512]
         return tf.concat(outputs, axis=2) # Concat and return forward + backward outputs
 
-def reference_encoder(inputs, filters, kernel_size, strides, encoder_cell, is_training, scope='ref_encoder'):
-  with tf.variable_scope(scope or 'ref_encoder'):
-    ref_outputs = tf.expand_dims(inputs, axis=-1)
-    # CNN stack
-    for i, channel in enumerate(filters):
-      ref_outputs = conv2d(ref_outputs, channel, kernel_size, strides, tf.nn.relu, is_training, 'conv2d_%d' % i)
+def encoder_cbhg(inputs, input_lengths, is_training):
+  return cbhg(
+    inputs,
+    input_lengths,
+    is_training,
+    scope='encoder_cbhg',
+    K=16,
+    projections=[128, 128])
 
-    shapes = shape_list(ref_outputs)
-    ref_outputs = tf.reshape(
-      ref_outputs, 
-      shapes[:-2] + [shapes[2] * shapes[3]])
-    # RNN
-    encoder_outputs, encoder_state = tf.nn.dynamic_rnn(
-      encoder_cell,
-      ref_outputs,
+
+def post_cbhg(inputs, input_dim, is_training):
+  return cbhg(
+    inputs,
+    None,
+    is_training,
+    scope='post_cbhg',
+    K=8,
+    projections=[256, input_dim])
+
+
+def cbhg(inputs, input_lengths, is_training, scope, K, projections):
+  with tf.variable_scope(scope):
+    with tf.variable_scope('conv_bank'):
+      # Convolution bank: concatenate on the last axis to stack channels from all convolutions
+      conv_outputs = tf.concat(
+        [conv1d(inputs, k, 128, tf.nn.relu, is_training, 'conv1d_%d' % k) for k in range(1, K+1)],
+        axis=-1
+      )
+
+    # Maxpooling:
+    maxpool_output = tf.layers.max_pooling1d(
+      conv_outputs,
+      pool_size=2,
+      strides=1,
+      padding='same')
+
+    # Two projection layers:
+    proj1_output = conv1d(maxpool_output, 3, projections[0], tf.nn.relu, is_training, 'proj_1')
+    proj2_output = conv1d(proj1_output, 3, projections[1], None, is_training, 'proj_2')
+
+    # Residual connection:
+    highway_input = proj2_output + inputs
+
+    # Handle dimensionality mismatch:
+    if highway_input.shape[2] != 128:
+      highway_input = tf.layers.dense(highway_input, 128)
+
+    # 4-layer HighwayNet:
+    for i in range(4):
+      highway_input = highwaynet(highway_input, 'highway_%d' % (i+1))
+    rnn_input = highway_input
+
+    # Bidirectional RNN
+    outputs, states = tf.nn.bidirectional_dynamic_rnn(
+      GRUCell(128),
+      GRUCell(128),
+      rnn_input,
+      sequence_length=input_lengths,
       dtype=tf.float32)
-
-    reference_state = tf.layers.dense(encoder_outputs[:,-1,:], 128, activation=tf.nn.tanh) # [N, 128]
-    return reference_state
+    return tf.concat(outputs, axis=2)  # Concat forward and backward
 
 
-def encoder_cbhg(inputs, input_lengths, is_training, depth):
-	"""
-	Args:
-		inputs: input tensor
-		input_lengths: length of input tensor
-		is_training: Batch Normalization option in Conv1D
-		depth: dimensionality option of Highway net and Bidirectical GRU's output
-	
-	Output:
-		cbhg function
-	"""
-	input_channels = inputs.get_shape()[2] # 3rd element of inputs' shape
-	return cbhg(
-		inputs,
-		input_lengths,
-		is_training,
-		scope='encoder_cbhg',
-		K=16,
-		projections=[128, input_channels],
-		depth=depth)
-
-
-def post_cbhg(inputs, input_dim, is_training, depth):
-	"""
-	Args:
-		inputs: input tensor
-		input_dim: dimension of input tensor
-		is_training: Batch Normalization option in Conv1D
-		depth: dimensionality option of Highway net and Bidirectical GRU's output
-	
-	Output:
-		cbhg function
-	"""
-	return cbhg(
-		inputs,
-		None,
-		is_training,
-		scope='post_cbhg',
-		K=8,
-		projections=[256, input_dim],
-		depth=depth)
-
-
-def cbhg(inputs, input_lengths, is_training, scope, K, projections, depth):
-    """
-    Args:
-        inputs: input tensor
-        input_lengths: length of input tensor
-        is_training: Batch Normalization option in Conv1D
-        scope: network or model name
-        K: kernel size range
-        projections: projection layers option
-        depth: dimensionality option of Highway net and Bidirectical GRU's output
-    The layers in the code are staked in the order in which they came out.
-    """
-    with tf.variable_scope(scope):
-        with tf.variable_scope('conv_bank'):
-
-            conv_outputs = tf.concat(
-                [conv1d(inputs, k, 128, tf.nn.relu, is_training, 'conv1d_%d' % k) for k in range(1, K + 1)], #1D Convolution layers using multiple types of Convolution Kernel.
-                axis=-1																						 #Iterate K with increasing filter size by 1.
-            )# Convolution bank: concatenate on the last axis to stack channels from all convolutions
-
-        # Maxpooling:
-        maxpool_output = tf.layers.max_pooling1d(
-            conv_outputs,
-            pool_size=2,
-            strides=1,
-            padding='same') #1D Maxpooling layer(strides=1, width=2) 
-
-        # Two projection layers:
-        proj1_output = conv1d(maxpool_output, 3, projections[0], tf.nn.relu, is_training, 'proj_1')#1st Conv1D projections
-        proj2_output = conv1d(proj1_output, 3, projections[1], None, is_training, 'proj_2')#2nd Conv1D projections
-
-        # Residual connection:
-        highway_input = proj2_output + inputs #Highway net input with residual connection
-
-        half_depth = depth // 2
-        assert half_depth * 2 == depth, 'encoder and postnet depths must be even.' #assert depth to be even
-
-        # Handle dimensionality mismatch:
-        if highway_input.shape[2] != half_depth: #check input's dimensionality and output's dimensionality are the same
-            highway_input = tf.layers.dense(highway_input, half_depth) #change input's channel size to Highway net output's  size
-
-        # 4-layer HighwayNet:
-        for i in range(4):
-            highway_input = highwaynet(highway_input, 'highway_%d' % (i + 1), half_depth) #make 4 Highway net layers
-        rnn_input = highway_input
-
-        # Bidirectional GRU
-        outputs, states = tf.nn.bidirectional_dynamic_rnn( #make Bidirectional GRU
-            GRUCell(half_depth),
-            GRUCell(half_depth),
-            rnn_input,
-            sequence_length=input_lengths,
-            dtype=tf.float32)
-        return tf.concat(outputs, axis=2)  # Concat forward sequence and backward sequence
-
-def highwaynet(inputs, scope, depth):
-	with tf.variable_scope(scope):
-		H = tf.layers.dense(
-			inputs,
-			units=depth,
-			activation=tf.nn.relu,
-			name='H')
-		T = tf.layers.dense(
-			inputs,
-			units=depth,
-			activation=tf.nn.sigmoid,
-			name='T',
-			bias_initializer=tf.constant_initializer(-1.0))
-		return H * T + inputs * (1.0 - T)
+def highwaynet(inputs, scope):
+  with tf.variable_scope(scope):
+    H = tf.layers.dense(
+      inputs,
+      units=128,
+      activation=tf.nn.relu,
+      name='H')
+    T = tf.layers.dense(
+      inputs,
+      units=128,
+      activation=tf.nn.sigmoid,
+      name='T',
+      bias_initializer=tf.constant_initializer(-1.0))
+    return H * T + inputs * (1.0 - T)
 
 
 def conv1d(inputs, kernel_size, channels, activation, is_training, scope):
-	"""
-	Args:
-		inputs: input tensor
-		kernel_size: length of the 1D convolution window
-		channels: dimensionality of the output space
-		activation: Activation function (None means linear activation)
-		is_training: Batch Normalization option in Conv1D
-		scope: namespace
-	
-	Output:
-		output tensor
-	"""
-	with tf.variable_scope(scope):
-		conv1d_output = tf.layers.conv1d( # creates a convolution kernel
-			inputs,
-			filters=channels,
-			kernel_size=kernel_size,
-			activation=activation,
-			padding='same') # return output tensor
-		return tf.layers.batch_normalization(conv1d_output, training=is_training)
+  with tf.variable_scope(scope):
+    conv1d_output = tf.layers.conv1d(
+      inputs,
+      filters=channels,
+      kernel_size=kernel_size,
+      activation=activation,
+      padding='same')
+    return tf.layers.batch_normalization(conv1d_output, training=is_training)
 
 def conv2d(inputs, filters, kernel_size, strides, activation, is_training, scope):
   with tf.variable_scope(scope):
@@ -218,7 +150,7 @@ def conv2d(inputs, filters, kernel_size, strides, activation, is_training, scope
     conv2d_output = tf.layers.batch_normalization(conv2d_output, training=is_training)
     if activation is not None:
       conv2d_output = activation(conv2d_output)
-    return conv2d_output    
+    return conv2d_output
 
 class ZoneoutLSTMCell(RNNCell):
     '''Wrapper for tf LSTM to create Zoneout LSTM Cell
@@ -278,7 +210,6 @@ class ZoneoutLSTMCell(RNNCell):
         new_state = tf.nn.rnn_cell.LSTMStateTuple(c, h) if self.state_is_tuple else tf.concat(1, [c, h])
 
         return output, new_state
-    
 
 class LocationSensitiveAttention(BahdanauAttention):
     """Impelements Bahdanau-style (cumulative) scoring function.
@@ -464,175 +395,3 @@ def _smoothing_normalization(e):
             attendance to multiple memory time steps.
     """
     return tf.nn.sigmoid(e) / tf.reduce_sum(tf.nn.sigmoid(e), axis=-1, keepdims=True)
-
-class GmmAttention(AttentionMechanism):
-    def __init__(self,
-                 num_mixtures,
-                 memory,
-                 memory_sequence_length=None,
-                 check_inner_dims_defined=True,
-                 score_mask_value=None,
-                 name='GmmAttention'):
-
-        self.dtype = memory.dtype
-        self.num_mixtures = num_mixtures
-        self.query_layer = tf.layers.Dense(3 * num_mixtures, name='gmm_query_projection', use_bias=True, dtype=self.dtype)
-
-        with tf.name_scope(name, 'GmmAttentionMechanismInit'):
-            if score_mask_value is None:
-                score_mask_value = 0.
-            self._maybe_mask_score = functools.partial(
-                _maybe_mask_score,
-                memory_sequence_length=memory_sequence_length,
-                score_mask_value=score_mask_value)
-            self._value = _prepare_memory(
-                memory, memory_sequence_length, check_inner_dims_defined)
-            self._batch_size = (
-                self._value.shape[0].value or tf.shape(self._value)[0])
-            self._alignments_size = (
-                    self._value.shape[1].value or tf.shape(self._value)[1])
-
-    @property
-    def values(self):
-        return self._value
-
-    @property
-    def batch_size(self):
-        return self._batch_size
-
-    @property
-    def alignments_size(self):
-        return self._alignments_size
-
-    @property
-    def state_size(self):
-        return self.num_mixtures
-
-    def initial_alignments(self, batch_size, dtype):
-        max_time = self._alignments_size
-        return _zero_state_tensors(max_time, batch_size, dtype)
-
-    def initial_state(self, batch_size, dtype):
-        state_size_ = self.state_size
-        return _zero_state_tensors(state_size_, batch_size, dtype)
-
-    def __call__(self, query, state):
-        with tf.variable_scope("GmmAttention"):
-            previous_kappa = state
-            
-            params = self.query_layer(query)   # query(dec_rnn_size=256) , params(num_mixtures(256)*3)
-            alpha_hat, beta_hat, kappa_hat = tf.split(params, num_or_size_splits=3, axis=1)
-
-            # [batch_size, num_mixtures, 1]
-            alpha = tf.expand_dims(tf.exp(alpha_hat), axis=2)
-            # softmax makes the alpha value more stable.
-            # alpha = tf.expand_dims(tf.nn.softmax(alpha_hat, axis=1), axis=2)
-            beta = tf.expand_dims(tf.exp(beta_hat), axis=2)
-            kappa = tf.expand_dims(previous_kappa + tf.exp(kappa_hat), axis=2)
-
-            # [1, 1, max_input_steps]
-            mu = tf.reshape(tf.cast(tf.range(self.alignments_size), dtype=tf.float32), shape=[1, 1, self.alignments_size])  # [[[0,1,2,...]]]
-
-            # [batch_size, max_input_steps]
-            phi = tf.reduce_sum(alpha * tf.exp(-beta * (kappa - mu) ** 2.), axis=1)
-
-        alignments = self._maybe_mask_score(phi)
-        state = tf.squeeze(kappa, axis=2)
-
-        return alignments, state
-
-def monotonic_stepwise_attention(p_choose_i, previous_attention, mode):
-    # p_choose_i, previous_alignments, previous_score: [batch_size, memory_size]
-    # p_choose_i: probability to keep attended to the last attended entry i
-    if mode == "parallel":
-        pad = tf.zeros([tf.shape(p_choose_i)[0], 1], dtype=p_choose_i.dtype)
-        attention = previous_attention * p_choose_i + tf.concat(
-            [pad, previous_attention[:, :-1] * (1.0 - p_choose_i[:, :-1])], axis=1)
-    elif mode == "hard":
-        # Given that previous_alignments is one_hot
-        move_next_mask = tf.concat([tf.zeros_like(previous_attention[:, :1]), previous_attention[:, :-1]], axis=1)
-        stay_prob = tf.reduce_sum(p_choose_i * previous_attention, axis=1) # [B]
-        attention = tf.where(stay_prob > 0.5, previous_attention, move_next_mask)
-    else:
-        raise ValueError("mode must be 'parallel', or 'hard'.")
-    return attention
-
-
-def _stepwise_monotonic_probability_fn(score, previous_alignments, sigmoid_noise, mode, seed=None):
-    if sigmoid_noise > 0:
-        noise = random_ops.random_normal(array_ops.shape(score), dtype=score.dtype,
-                                         seed=seed)
-        score += sigmoid_noise * noise
-    if mode == "hard":
-        # When mode is hard, use a hard sigmoid
-        p_choose_i = math_ops.cast(score > 0, score.dtype)
-    else:
-        p_choose_i = math_ops.sigmoid(score)
-    alignments = monotonic_stepwise_attention(p_choose_i, previous_alignments, mode)
-    return alignments
-
-
-class BahdanauStepwiseMonotonicAttention(BahdanauMonotonicAttention):
-    def __init__(self,
-                 num_units,
-                 memory,
-                 memory_sequence_length=None,
-                 normalize=True,
-                 score_mask_value=None,
-                 sigmoid_noise=2.0,
-                 sigmoid_noise_seed=None,
-                 score_bias_init=3.5,
-                 mode="parallel",
-                 dtype=None,
-                 name="BahdanauStepwiseMonotonicAttention"):
-        if dtype is None:
-            dtype = tf.float32
-        wrapped_probability_fn = functools.partial(
-            _stepwise_monotonic_probability_fn, sigmoid_noise=sigmoid_noise, mode=mode,
-            seed=sigmoid_noise_seed)
-        super(BahdanauMonotonicAttention, self).__init__(
-            query_layer=tf.layers.Dense(
-                num_units, name="query_layer", use_bias=False, dtype=dtype),
-            memory_layer=tf.layers.Dense(
-                num_units, name="memory_layer", use_bias=False, dtype=dtype),
-            memory=memory,
-            probability_fn=wrapped_probability_fn,
-            memory_sequence_length=memory_sequence_length,
-            score_mask_value=score_mask_value,
-            name=name)
-        self._num_units = num_units
-        self._normalize = normalize
-        self._name = name
-        self._score_bias_init = score_bias_init
-
-    # def __call__(self, query, state):
-    #     """Score the query based on the keys and values.
-    #     Args:
-    #       query: Tensor of dtype matching `self.values` and shape
-    #         `[batch_size, query_depth]`.
-    #       state: Tensor of dtype matching `self.values` and shape
-    #         `[batch_size, alignments_size]`
-    #         (`alignments_size` is memory's `max_time`).
-    #     Returns:
-    #       alignments: Tensor of dtype matching `self.values` and shape
-    #         `[batch_size, alignments_size]` (`alignments_size` is memory's
-    #         `max_time`).
-    #     """
-    #     with tf.variable_scope(None, "bahdanau_stepwise_monotonic_attention", [query]):
-    #         processed_query = self.query_layer(query) if self.query_layer else query
-    #         score = _bahdanau_score(processed_query, self._keys, self._normalize)     # keys 가 memory임
-    #         score_bias = tf.get_variable("attention_score_bias", dtype=processed_query.dtype, initializer=self._score_bias_init)
-
-    #         #alignments_bias = tf.get_variable("alignments_bias", shape = state.get_shape()[-1],dtype=processed_query.dtype, initializer=tf.zeros_initializer())  # hccho
-    #         alignments_bias = tf.get_variable("alignments_bias", shape = (1),dtype=processed_query.dtype, initializer=tf.zeros_initializer())  # hccho
-
-    #         score += score_bias
-    #     alignments = self._probability_fn(score, state)   #BahdanauAttention에서 _probability_fn = softmax
-
-    #     next_state = alignments   # 다음 alignment 계산에 사용할 state 값  =  AttentionWrapperState.attention_state
-    #     # hccho. alignment가 attention 계산에 직접 사용된다.
-    #     alignments = tf.nn.relu(alignments+alignments_bias)
-    #     alignments = alignments/(tf.reduce_sum(alignments,axis=-1,keepdims=True) + 1.0e-12 )  # hccho 수정
-
-
-    #     return alignments, next_state
