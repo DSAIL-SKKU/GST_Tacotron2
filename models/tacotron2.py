@@ -4,7 +4,7 @@ from tensorflow.contrib.seq2seq import BasicDecoder, BahdanauAttention, Attentio
 from text.symbols import symbols
 from util.infolog import log
 from util.ops import shape_list
-from .helpers import TacoTestHelper, TacoTrainingHelper
+from .helpers2 import TacoTestHelper, TacoTrainingHelper
 from .modules import encoder, reference_encoder, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention, BahdanauStepwiseMonotonicAttention
 from .rnn_wrappers import DecoderPrenetWrapper
 from .style_attention import MultiheadAttention

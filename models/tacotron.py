@@ -84,12 +84,12 @@ class Tacotron():
 
             attention_cell = AttentionWrapper(
                 GRUCell(hp.attention_depth),
-                attention_mechanism,
+                BahdanauAttention(hp.attention_depth, encoder_outputs, memory_sequence_length=input_lengths),
                 alignment_history=True,
                 output_attention=False)  # [N, T_in, attention_depth=256]
 
             # Apply prenet before concatenation in AttentionWrapper.
-            attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
+            # attention_cell = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
 
             # Concatenate attention context vector and RNN cell output into a 2*attention_depth=512D vector.
             concat_cell = ConcatOutputAndAttentionWrapper(attention_cell)  # [N, T_in, 2*attention_depth=512]
@@ -107,9 +107,9 @@ class Tacotron():
             decoder_init_state = output_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
 
             if is_training:
-                helper = TacoTrainingHelper(inputs, mel_targets, hp.num_mels, hp.outputs_per_step)
+                helper = TacoTrainingHelper(inputs, mel_targets, hp)
             else:
-                helper = TacoTestHelper(batch_size, hp.num_mels, hp.outputs_per_step)
+                helper = TacoTestHelper(batch_size, hp)
 
             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
                 BasicDecoder(output_cell, helper, decoder_init_state),
