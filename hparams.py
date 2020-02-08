@@ -33,7 +33,7 @@ hparams = tf.contrib.training.HParams(
     gst_scale=0.3,
 
     #Attention
-    attention_depth=256,
+    attention_depth=128,
     attention_filters = 32,
     attention_kernel = (31, ),
     attention_dim = 128,
