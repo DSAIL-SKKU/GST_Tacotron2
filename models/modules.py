@@ -4,7 +4,7 @@ from util.ops import shape_list
 from tensorflow.contrib.seq2seq.python.ops.attention_wrapper import _bahdanau_score, _BaseAttentionMechanism, BahdanauAttention
 from tensorflow.python.ops import array_ops, math_ops, nn_ops, variable_scope, random_ops
 
-def prenet(inputs, is_training, layer_sizes=[256, 128], scope=None):
+def prenet(inputs, is_training, layer_sizes=[256, 256], scope=None):
   x = inputs
   # Dropout in both training and testing
   drop_rate = 0.5

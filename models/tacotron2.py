@@ -129,7 +129,7 @@ class Tacotron():
 
       # Add post-processing CBHG:
       # mel_outputs: (N,T,num_mels)
-      post_outputs = post_cbhg(mel_outputs, hp.num_mels, is_training, hp.postnet_depth)
+      post_outputs = post_cbhg(mel_outputs, hp.num_mels, is_training)
       linear_outputs = tf.layers.dense(post_outputs, hp.num_freq)    # [N, T_out, F(1025)]             # [N, T_out, F]
 
       # Grab alignments from the final decoder state:
