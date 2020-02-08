@@ -4,7 +4,7 @@
 # from text.symbols import symbols
 # from util.infolog import log
 # from util.ops import shape_list
-# from .helpers2 import TacoTestHelper, TacoTrainingHelper
+# from .helpers import TacoTestHelper, TacoTrainingHelper
 # from .modules import encoder, reference_encoder, post_cbhg, prenet, LocationSensitiveAttention, ZoneoutLSTMCell, GmmAttention, BahdanauStepwiseMonotonicAttention
 # from .rnn_wrappers import DecoderPrenetWrapper
 # from .style_attention import MultiheadAttention
@@ -105,9 +105,9 @@
 #             dec_outputs_cell = OutputProjectionWrapper(dec_outputs, (hp.num_mels) * hp.outputs_per_step)
 
 #             if is_training:
-#                 helper = TacoTrainingHelper(inputs, mel_targets, hp.num_mels, hp.outputs_per_step)
+#                 helper = TacoTrainingHelper(inputs, mel_targets, hp)
 #             else:
-#                 helper = TacoTestHelper(batch_size, hp.num_mels, hp.outputs_per_step)
+#                 helper = TacoTestHelper(batch_size, hp)
                 
 #             decoder_init_state = dec_outputs_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
 #             (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
