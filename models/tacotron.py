@@ -70,17 +70,17 @@ class Tacotron():
             #     RNN_mechanism = LSTMCell(hp.decoder_depth)
 
             # Attention
-            if hp.attention_type == 'loc_sen': # Location Sensitivity Attention
-                attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
-                                    mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
-            elif hp.attention_type == 'gmm': # GMM Attention
-                attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths) 
-            elif hp.attention_type == 'step_bah': # Stepwise 
-                attention_mechanism = BahdanauStepwiseMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, mode="parallel")
-            elif hp.attention_type == 'mon_bah': # Monotonic Attention
-                attention_mechanism = BahdanauMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, normalize=True)
-            elif hp.attention_type == 'loung': # Loung Attention
-                attention_mechanism = LuongAttention(128, encoder_outputs, memory_sequence_length = input_lengths, scale=True) 
+            # if hp.attention_type == 'loc_sen': # Location Sensitivity Attention
+            #     attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
+            #                         mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
+            # elif hp.attention_type == 'gmm': # GMM Attention
+            #     attention_mechanism = GmmAttention(128, memory=encoder_outputs, memory_sequence_length = input_lengths) 
+            # elif hp.attention_type == 'step_bah': # Stepwise 
+            #     attention_mechanism = BahdanauStepwiseMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, mode="parallel")
+            # elif hp.attention_type == 'mon_bah': # Monotonic Attention
+            #     attention_mechanism = BahdanauMonotonicAttention(128, encoder_outputs, memory_sequence_length = input_lengths, normalize=True)
+            # elif hp.attention_type == 'loung': # Loung Attention
+            #     attention_mechanism = LuongAttention(128, encoder_outputs, memory_sequence_length = input_lengths, scale=True) 
 
             attention_cell = AttentionWrapper(
                 GRUCell(hp.attention_depth),
