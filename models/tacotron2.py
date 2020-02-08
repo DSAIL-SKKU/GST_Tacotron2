@@ -90,9 +90,11 @@ class Tacotron():
       encoder_outputs = tf.concat([encoder_outputs, style_embeddings], axis=-1)
 
       # Attention
+      attention_mechanism = LocationSensitiveAttention(128, encoder_outputs,hparams=hp, is_training=is_training,
+                                    mask_encoder=True, memory_sequence_length = input_lengths, smoothing=False, cumulate_weights=True)
       decoder_lstm = [ZoneoutLSTMCell(1024, is_training, zoneout_factor_cell=0.1, zoneout_factor_output=0.1, name='decoder_LSTM_{}'.format(i+1)) for i in range(2)]
             
-      decoder_lstm = tf.contrib.rnn.MultiRNNCell(decoder_lstm, state_is_tuple=True)
+      decoder_lstm = MultiRNNCell(decoder_lstm, state_is_tuple=True)
       decoder_init_state = decoder_lstm.zero_state(batch_size=batch_size, dtype=tf.float32) #tensorflow1에는 없음
       
       attention_cell = AttentionWrapper(decoder_lstm, attention_mechanism, initial_cell_state=decoder_init_state, alignment_history=True, output_attention=False)
@@ -100,7 +102,7 @@ class Tacotron():
       # attention_state_size = 256
       # Decoder input -> prenet -> decoder_lstm -> concat[output, attention]
       # dec_outputs = DecoderPrenetWrapper(attention_cell, is_training, hp.prenet_depths)
-      dec_outputs_cell = OutputProjectionWrapper((attention_cell,(hp.num_mels) * hp.outputs_per_step)
+      dec_outputs_cell = OutputProjectionWrapper(attention_cell,(hp.num_mels) * hp.outputs_per_step)
       
       if is_training:
         helper = TacoTrainingHelper(inputs, mel_targets, hp)
@@ -109,7 +111,7 @@ class Tacotron():
 
       decoder_init_state = dec_outputs_cell.zero_state(batch_size=batch_size, dtype=tf.float32)
       (decoder_outputs, _), final_decoder_state, _ = tf.contrib.seq2seq.dynamic_decode(
-        BasicDecoder(dec_output_cell, helper, decoder_init_state),
+        BasicDecoder(dec_outputs_cell, helper, decoder_init_state),
         maximum_iterations=hp.max_iters)                                        # [N, T_out/r, M*r]
 
       # Reshape outputs to be one output per entry
