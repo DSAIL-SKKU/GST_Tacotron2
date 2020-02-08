@@ -16,8 +16,7 @@ hparams = tf.contrib.training.HParams(
     ref_level_db=20,
 
     # Encoder:
-    embed_depth=256,
-    embed_depth2=512,
+    embed_depth=512,
     encoder_conv_filter=512,
     encoder_conv_kernel=5,
     encoder_stack_size=3,
@@ -25,11 +24,11 @@ hparams = tf.contrib.training.HParams(
 
     #Global Style Token
     num_gst=10,
-    style_embed_depth=256,
+    style_embed_depth=512,
     ref_filters=[32, 32, 64, 64, 128, 128],
     ref_depth=128,
     style_att_type='mlp_attention',
-    style_att_dim=128,
+    style_att_dim=512,
     gst_index=3,
     gst_scale=0.3,
 
@@ -41,15 +40,14 @@ hparams = tf.contrib.training.HParams(
     synthesis_constraint = False,
     synthesis_constraint_type = 'window',
     attention_win_size = 7,
-    attention_type = 'mon_bah',
+    attention_type = 'loc_sen',
     cumulative_weights = True,
-    num_heads=4,
+    num_heads=8,
 
     # Model:
-    model='tacotron',
+    model='tacotron2',
     outputs_per_step=5,
-    prenet_depths=[256, 128],
-    prenet_depths2=[256, 256],
+    prenet_depths=[256, 256],
     encoder_depth=256,
     postnet_depth=256,
     reg_weight = 1e-6,

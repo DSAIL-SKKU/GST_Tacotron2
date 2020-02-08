@@ -1,16 +1,15 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.seq2seq import Helper
-from .modules import prenet
+
 
 # Adapted from tf.contrib.seq2seq.GreedyEmbeddingHelper
 class TacoTestHelper(Helper):
-    def __init__(self, batch_size, hp):
+    def __init__(self, batch_size, output_dim, r):
         with tf.name_scope('TacoTestHelper'):
             self._batch_size = batch_size
-            self._output_dim = hp.num_mels
-            self._end_token = tf.tile([0.0], [self._output_dim * hp.outputs_per_step])
-            self._hp = hp
+            self._output_dim = output_dim
+            self._end_token = tf.tile([0.0], [output_dim * r])
 
     @property
     def batch_size(self):
@@ -25,7 +24,7 @@ class TacoTestHelper(Helper):
         return np.int32
 
     def initialize(self, name=None):
-        return (tf.tile([False], [self._batch_size]), _go_frames(self._batch_size, self._hp.prenet_depths[-1]))
+        return (tf.tile([False], [self._batch_size]), _go_frames(self._batch_size, self._output_dim))
 
     def sample(self, time, outputs, state, name=None):
         return tf.tile([0], [self._batch_size])  # Return all 0; we ignore them
@@ -36,22 +35,20 @@ class TacoTestHelper(Helper):
             finished = tf.reduce_all(tf.equal(outputs, self._end_token), axis=1)
             # Feed last output frame as next input. outputs is [N, output_dim * r]
             next_inputs = outputs[:, -self._output_dim:]
-            next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
             return (finished, next_inputs, state)
 
 
 class TacoTrainingHelper(Helper):
-    def __init__(self, inputs, targets, hp):
-    # inputs is [N, T_in], targets is [N, T_out, D]
+    def __init__(self, inputs, targets, output_dim, r):
+        # inputs is [N, T_in], targets is [N, T_out, D]
         with tf.name_scope('TacoTrainingHelper'):
             self._batch_size = tf.shape(inputs)[0]
-            self._output_dim = hp.num_mels
+            self._output_dim = output_dim
 
-      # Feed every r-th target frame as input
-            self._targets = targets[:, hp.outputs_per_step-1::hp.outputs_per_step, :]
-            self._hp = hp
+            # Feed every r-th target frame as input
+            self._targets = targets[:, r - 1::r, :]
 
-      # Use full length for every target because we don't want to mask the padding frames
+            # Use full length for every target because we don't want to mask the padding frames
             num_steps = tf.shape(self._targets)[1]
             self._lengths = tf.tile([num_steps], [self._batch_size])
 
@@ -68,7 +65,7 @@ class TacoTrainingHelper(Helper):
         return np.int32
 
     def initialize(self, name=None):
-        return (tf.tile([False], [self._batch_size]), _go_frames(self._batch_size, self._hp.prenet_depths[-1]))
+        return (tf.tile([False], [self._batch_size]), _go_frames(self._batch_size, self._output_dim))
 
     def sample(self, time, outputs, state, name=None):
         return tf.tile([0], [self._batch_size])  # Return all 0; we ignore them
@@ -77,7 +74,6 @@ class TacoTrainingHelper(Helper):
         with tf.name_scope(name or 'TacoTrainingHelper'):
             finished = (time + 1 >= self._lengths)
             next_inputs = self._targets[:, time, :]
-            next_inputs = prenet(next_inputs, True, self._hp.prenet_depths, "decoder_prenet")
             return (finished, next_inputs, state)
 
 
